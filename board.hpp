@@ -125,6 +125,8 @@ public:
 	, whiteLong(false)
 	, blackShort(false)
 	, blackLong(false)
+	, enPassantTarget(0)
+	, halfmoveClock(0)
 	{
 	    // set every square to empty
 	    for (int i=0; i<120; i++) mailbox[i] = PieceInfo();
@@ -138,5 +140,9 @@ public:
 		mailbox[i] = PieceInfo(PieceType::outOfBoard);
 	    for (int i=110; i<120; i++)
 		mailbox[i] = PieceInfo(PieceType::outOfBoard);
+	    for (int i=2; i<10; i++) {
+		mailbox[i*10]   = PieceInfo(PieceType::outOfBoard);
+		mailbox[i*10+9] = PieceInfo(PieceType::outOfBoard);
+	    }
 	}
 };

@@ -4,6 +4,7 @@
 #include "params.hpp"
 #include "statistics.hpp"
 #include "board.hpp"
+#include "fen.hpp"
 
 int main(int argc, char* argv[]) {
     // delete old statfile in case of restart
@@ -11,7 +12,8 @@ int main(int argc, char* argv[]) {
     // print boot message to statfile
     if constexpr (azalea::statistics) dumpBootMsg();
 
-    Board board = Board();
+    //Board b = fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+    Board b = fen("8/8/8/8/8/8/8/8 w - - 0 1");
 
     return 0; // TO BE DELETED
 
@@ -31,7 +33,8 @@ int main(int argc, char* argv[]) {
 	// go section
 	} else if (command.substr(0, 2) == "go") {
 	    if (command.substr(3, 5) == "perft") {
-		const int depth = std::stoi(command.substr(9, command.length()));
+		const int depth
+			    = std::stoi(command.substr(9, command.length()));
 		std::cout << "no perft implemented yet... :(\n" << std::flush;
 	    }
 	}
