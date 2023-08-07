@@ -26,50 +26,108 @@ Board fen(std::string f) {
 	switch (c) {
 	    case 'P':
 		b.mailbox[index] = PieceInfo(Color::white, PieceType::pawn);
+		b.pieceList.push_back(
+			Piece(Color::white,
+			      PieceType::pawn,
+			      index)
+		);
 		index++;
 		break;
 	    case 'N':
 		b.mailbox[index] = PieceInfo(Color::white, PieceType::knight);
+		b.pieceList.push_back(
+			Piece(Color::white,
+			      PieceType::knight,
+			      index)
+		);
 		index++;
 		break;
 	    case 'B':
 		b.mailbox[index] = PieceInfo(Color::white, PieceType::bishop);
+		b.pieceList.push_back(
+			Piece(Color::white,
+			      PieceType::bishop,
+			      index)
+		);
 		index++;
 		break;
 	    case 'R':
 		b.mailbox[index] = PieceInfo(Color::white, PieceType::rook);
+		b.pieceList.push_back(
+			Piece(Color::white,
+			      PieceType::rook,
+			      index)
+		);
 		index++;
 		break;
 	    case 'Q':
 		b.mailbox[index] = PieceInfo(Color::white, PieceType::queen);
+		b.pieceList.push_back(
+			Piece(Color::white,
+			      PieceType::queen,
+			      index)
+		);
 		index++;
 		break;
 	    case 'K':
 		b.mailbox[index] = PieceInfo(Color::white, PieceType::king);
+		b.whiteKing =
+			Piece(Color::white,
+			      PieceType::king,
+			      index);
 		index++;
 		break;
 	    case 'p':
 		b.mailbox[index] = PieceInfo(Color::black, PieceType::pawn);
+		b.pieceList.push_back(
+			Piece(Color::black,
+			      PieceType::pawn,
+			      index)
+		);
 		index++;
 		break;
 	    case 'n':
 		b.mailbox[index] = PieceInfo(Color::black, PieceType::knight);
+		b.pieceList.push_back(
+			Piece(Color::black,
+			      PieceType::knight,
+			      index)
+		);
 		index++;
 		break;
 	    case 'b':
 		b.mailbox[index] = PieceInfo(Color::black, PieceType::bishop);
+		b.pieceList.push_back(
+			Piece(Color::black,
+			      PieceType::bishop,
+			      index)
+		);
 		index++;
 		break;
 	    case 'r':
 		b.mailbox[index] = PieceInfo(Color::black, PieceType::rook);
+		b.pieceList.push_back(
+			Piece(Color::black,
+			      PieceType::rook,
+			      index)
+		);
 		index++;
 		break;
 	    case 'q':
 		b.mailbox[index] = PieceInfo(Color::black, PieceType::queen);
+		b.pieceList.push_back(
+			Piece(Color::black,
+			      PieceType::queen,
+			      index)
+		);
 		index++;
 		break;
 	    case 'k':
 		b.mailbox[index] = PieceInfo(Color::black, PieceType::king);
+		b.blackKing =
+			Piece(Color::white,
+			      PieceType::king,
+			      index);
 		index++;
 		break;
 	    case '1':

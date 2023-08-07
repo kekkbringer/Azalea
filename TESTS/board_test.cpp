@@ -2,6 +2,8 @@
 
 #define CATCH_CONFIG_NOSTDOUT
 
+#include <algorithm>
+
 #include "board.hpp"
 #include "fen.hpp"
 
@@ -76,6 +78,11 @@ TEST_CASE("Testing board representation...", "[board]") {
 	const Board b3
 	    = fen("8/8/8/8/8/8/8/8 w - - 47 1");
 	REQUIRE(b3.halfmoveClock == 47);
+    }
+    SECTION("empty piece list") {
+	const Board b1
+	    = fen("8/8/8/8/8/8/8/8 w - - 0 1");
+	REQUIRE(b1.pieceList.size() == 0);
     }
     SECTION("FEN startpos") {
 	const Board b
@@ -156,5 +163,9 @@ TEST_CASE("Testing board representation...", "[board]") {
 	REQUIRE(b.mailbox[95].type == PieceType::king);
 	REQUIRE(b.mailbox[25].color == Color::black);
 	REQUIRE(b.mailbox[95].color == Color::white);
+
+	// check piece list
+	const auto pl = b.pieceList;
+	REQUIRE(std::find(pl.begin(), pl.end(), Piece(Color::white, PieceType::queen, 94)) != pl.end());
     }
 }

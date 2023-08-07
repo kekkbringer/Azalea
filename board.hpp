@@ -49,28 +49,29 @@ public:
  *
  * Similar to PieceInfo but contains some additional information:
  * 	- its location on the board
- * 	- has it moved yet?
+ * DELETED	- has it moved yet?
  */
 class Piece {
 public:
     Color color;
     PieceType type;
     int location; // index on the 10x12 board
-    bool hasMoved;
 
     Piece()
 	: color(Color::white)
 	, type(PieceType::empty)
 	, location(0)
-	, hasMoved(false)
 	{}
 
-    Piece(Color color, PieceType type, int location, bool hasMoved)
+    Piece(Color color, PieceType type, int location)
 	: color(color)
 	, type(type)
 	, location(location)
-	, hasMoved(hasMoved)
 	{}
+
+    bool operator==(const Piece& p) const {
+	return color==p.color and type==p.type and location==p.location;
+    }
  };
  
 /******************************************************************************
@@ -103,6 +104,10 @@ public:
     // piece arrangement
     PieceInfo mailbox[120];
     std::vector<Piece> pieceList;
+
+    // kings
+    Piece whiteKing;
+    Piece blackKing;
 
     // side to move
     bool whiteToMove;

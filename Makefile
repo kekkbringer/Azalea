@@ -21,6 +21,9 @@ TOBJ_LIST := board_test.o
 
 OBJS := $(foreach object,$(OBJ_LIST),$(OBJ_DIR)/$(object))
 TOBJS := $(foreach object,$(TOBJ_LIST),$(OBJ_DIR)/TESTS/$(object))
+DEPS := $(OBJS:%.o=%.d) $(TOBJS:%.o=%.d) \
+	$(OBJ_DIR)/main.d $(OBJ_DIR)/TESTS/unit_tests.d
+
 
 all: $(BIN_DIR)/$(MAIN_EXEC) #$(BIN_DIR)/$(TEST_EXEC)
 
@@ -48,11 +51,14 @@ $(OBJ_DIR)/%.o: %.cpp
 $(OBJ_DIR)/TESTS/%.o: $(TEST_DIR)%.cpp
 	$(CXX) $(CPPFLAGS) -c $< -o $@
 
+-include $(DEPS)
+
 
 .PHONY: clean
 
 clean:
-	rm $(OBJ_DIR)/* $(BIN_DIR)/*
+	rm -f $(OBJ_DIR)/*.o $(BIN_DIR)/* $(OBJ_DIR)/TESTS/*.o
+	rm -f $(OBJ_DIR)/*.d $(BIN_DIR)/* $(OBJ_DIR)/TESTS/*.d
 config:
 	$(MKDIR_P) obj bin obj/TESTS
 tests: $(BIN_DIR)/$(TEST_EXEC)
