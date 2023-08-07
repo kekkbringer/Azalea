@@ -125,7 +125,7 @@ Board fen(std::string f) {
 	    case 'k':
 		b.mailbox[index] = PieceInfo(Color::black, PieceType::king);
 		b.blackKing =
-			Piece(Color::white,
+			Piece(Color::black,
 			      PieceType::king,
 			      index);
 		index++;

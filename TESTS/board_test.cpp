@@ -87,6 +87,7 @@ TEST_CASE("Testing board representation...", "[board]") {
     SECTION("FEN startpos") {
 	const Board b
 	    = fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+	const auto pl = b.pieceList;
 	REQUIRE(b.whiteToMove);
 	REQUIRE(b.whiteShort);
 	REQUIRE(b.blackShort);
@@ -118,6 +119,10 @@ TEST_CASE("Testing board representation...", "[board]") {
 	    REQUIRE(b.mailbox[i + 80].type == PieceType::pawn);
 	    REQUIRE(b.mailbox[i + 30].color == Color::black);
 	    REQUIRE(b.mailbox[i + 80].color == Color::white);
+	    REQUIRE(std::find(pl.begin(), pl.end(),
+		    Piece(Color::white, PieceType::pawn, i+80)) != pl.end());
+	    REQUIRE(std::find(pl.begin(), pl.end(),
+		    Piece(Color::black, PieceType::pawn, i+30)) != pl.end());
 	}
 
 	// rooks
@@ -129,6 +134,14 @@ TEST_CASE("Testing board representation...", "[board]") {
 	REQUIRE(b.mailbox[28].color == Color::black);
 	REQUIRE(b.mailbox[91].color == Color::white);
 	REQUIRE(b.mailbox[98].color == Color::white);
+	REQUIRE(std::find(pl.begin(), pl.end(),
+		    Piece(Color::white, PieceType::rook, 91)) != pl.end());
+	REQUIRE(std::find(pl.begin(), pl.end(),
+		    Piece(Color::white, PieceType::rook, 98)) != pl.end());
+	REQUIRE(std::find(pl.begin(), pl.end(),
+		    Piece(Color::black, PieceType::rook, 21)) != pl.end());
+	REQUIRE(std::find(pl.begin(), pl.end(),
+		    Piece(Color::black, PieceType::rook, 28)) != pl.end());
 
 	// knights
 	REQUIRE(b.mailbox[22].type == PieceType::knight);
@@ -139,6 +152,14 @@ TEST_CASE("Testing board representation...", "[board]") {
 	REQUIRE(b.mailbox[27].color == Color::black);
 	REQUIRE(b.mailbox[92].color == Color::white);
 	REQUIRE(b.mailbox[97].color == Color::white);
+	REQUIRE(std::find(pl.begin(), pl.end(),
+		    Piece(Color::white, PieceType::knight, 92)) != pl.end());
+	REQUIRE(std::find(pl.begin(), pl.end(),
+		    Piece(Color::white, PieceType::knight, 97)) != pl.end());
+	REQUIRE(std::find(pl.begin(), pl.end(),
+		    Piece(Color::black, PieceType::knight, 22)) != pl.end());
+	REQUIRE(std::find(pl.begin(), pl.end(),
+		    Piece(Color::black, PieceType::knight, 27)) != pl.end());
 
 
 	// bishops
@@ -150,6 +171,14 @@ TEST_CASE("Testing board representation...", "[board]") {
 	REQUIRE(b.mailbox[26].color == Color::black);
 	REQUIRE(b.mailbox[93].color == Color::white);
 	REQUIRE(b.mailbox[96].color == Color::white);
+	REQUIRE(std::find(pl.begin(), pl.end(),
+		    Piece(Color::white, PieceType::bishop, 93)) != pl.end());
+	REQUIRE(std::find(pl.begin(), pl.end(),
+		    Piece(Color::white, PieceType::bishop, 96)) != pl.end());
+	REQUIRE(std::find(pl.begin(), pl.end(),
+		    Piece(Color::black, PieceType::bishop, 23)) != pl.end());
+	REQUIRE(std::find(pl.begin(), pl.end(),
+		    Piece(Color::black, PieceType::bishop, 26)) != pl.end());
 
 
 	// queens
@@ -157,15 +186,17 @@ TEST_CASE("Testing board representation...", "[board]") {
 	REQUIRE(b.mailbox[94].type == PieceType::queen);
 	REQUIRE(b.mailbox[24].color == Color::black);
 	REQUIRE(b.mailbox[94].color == Color::white);
+	REQUIRE(std::find(pl.begin(), pl.end(),
+		    Piece(Color::white, PieceType::queen, 94)) != pl.end());
+	REQUIRE(std::find(pl.begin(), pl.end(),
+		    Piece(Color::black, PieceType::queen, 24)) != pl.end());
 
 	// kings
 	REQUIRE(b.mailbox[25].type == PieceType::king);
 	REQUIRE(b.mailbox[95].type == PieceType::king);
 	REQUIRE(b.mailbox[25].color == Color::black);
 	REQUIRE(b.mailbox[95].color == Color::white);
-
-	// check piece list
-	const auto pl = b.pieceList;
-	REQUIRE(std::find(pl.begin(), pl.end(), Piece(Color::white, PieceType::queen, 94)) != pl.end());
+	REQUIRE(b.whiteKing == Piece(Color::white, PieceType::king, 95));
+	REQUIRE(b.blackKing == Piece(Color::black, PieceType::king, 25));
     }
 }
