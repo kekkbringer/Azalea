@@ -59,6 +59,37 @@ TEST_CASE("testing movegen...", "[movegen]") {
     }
 
     SECTION("king with danger") {
+	const Board b = fen("1r6/8/8/4k3/8/8/8/K7 w - - 0 1");
+	generateLegalMoves(b, movelist);
+	REQUIRE(movelist.size()==1);
+
+	const Board b2 = fen("8/8/8/8/8/2k5/8/K7 w - - 0 1");
+	generateLegalMoves(b2, movelist);
+	REQUIRE(movelist.size()==2);
+
+	const Board b3 = fen("8/8/8/4k3/1n6/8/8/K7 w - - 0 1");
+	generateLegalMoves(b3, movelist);
+	REQUIRE(movelist.size()==2);
+
+	const Board b4 = fen("3rk3/8/8/8/8/3K4/8/8 w - - 0 1");
+	generateLegalMoves(b4, movelist);
+	REQUIRE(movelist.size()==6);
+
+	const Board b5 = fen("3rk3/8/8/5n2/8/3K4/8/8 w - - 0 1");
+	generateLegalMoves(b5, movelist);
+	REQUIRE(movelist.size()==5);
+
+	const Board b6 = fen("b2rk3/8/8/5n2/8/3K4/8/8 w - - 0 1");
+	generateLegalMoves(b6, movelist);
+	REQUIRE(movelist.size()==4);
+
+	const Board b7 = fen("b2rk3/8/8/5n2/8/3K4/8/2q5 w - - 0 1");
+	generateLegalMoves(b7, movelist);
+	REQUIRE(movelist.size()==1);
+
+	const Board b8 = fen("b2r4/8/8/8/8/3K4/8/2q2k2 w - - 0 1");
+	generateLegalMoves(b8, movelist);
+	REQUIRE(movelist.size()==0);
 
     }
 }
