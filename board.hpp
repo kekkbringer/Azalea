@@ -72,6 +72,10 @@ public:
     bool operator==(const Piece& p) const {
 	return color==p.color and type==p.type and location==p.location;
     }
+
+    bool operator!=(const Piece& p) const {
+	return !(color==p.color and type==p.type and location==p.location);
+    }
  };
  
 /******************************************************************************

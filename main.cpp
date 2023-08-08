@@ -1,10 +1,13 @@
 #include <iostream>
 #include <fstream>
+#include <vector>
 
 #include "params.hpp"
 #include "statistics.hpp"
 #include "board.hpp"
 #include "fen.hpp"
+#include "move.hpp"
+#include "movegenerator.hpp"
 
 int main(int argc, char* argv[]) {
     // delete old statfile in case of restart
@@ -12,8 +15,10 @@ int main(int argc, char* argv[]) {
     // print boot message to statfile
     if constexpr (azalea::statistics) dumpBootMsg();
 
-    //Board b = fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
-    Board b = fen("8/8/8/8/8/8/8/8 w - - 0 1");
+    Board b = fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+    std::vector<Move> movelist;
+    generateLegalMoves(b, movelist);
+    std::cout << "number of legal moves: " << movelist.size() << "\n";
 
     return 0; // TO BE DELETED
 

@@ -1,3 +1,5 @@
+#pragma once
+
 namespace azalea {
     /**************************************************************************
      * Version section
@@ -14,4 +16,11 @@ namespace azalea {
      */
     constexpr bool statistics = true;
     constexpr auto statfile = "stats.aza";
+
+    /**************************************************************************
+     * Move generation
+     *
+     * maxMoves - maximum number of moves possible
+     */
+    constexpr int maxMoves = 218;
 }
