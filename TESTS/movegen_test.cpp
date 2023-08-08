@@ -9,7 +9,7 @@
 #include "movegenerator.hpp"
 #include "fen.hpp"
 
-TEST_CASE("testing single piece movegen...", "[movegen]") {
+TEST_CASE("testing movegen...", "[movegen]") {
     std::vector<Move> movelist;
     SECTION("king") {
 	const Board b
@@ -56,5 +56,9 @@ TEST_CASE("testing single piece movegen...", "[movegen]") {
 	    = fen("7k/8/8/8/8/8/8/8 b - - 0 1");
 	generateLegalMoves(b9, movelist);
 	REQUIRE(movelist.size()==3);
+    }
+
+    SECTION("king with danger") {
+
     }
 }
