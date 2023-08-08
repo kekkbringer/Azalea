@@ -26,3 +26,9 @@ bool isAttackedNoKing(const Board& b, const int index);
  * moving side and returns a vector of these pieces.
  */
 std::vector<Piece> detectChecker(const Board& b);
+
+/******************************************************************************
+ * Function that detects pinned pieces and returns a vector containing their
+ * indicies.
+ */
+std::vector<int> detectPinnedPieces(const Board& b);

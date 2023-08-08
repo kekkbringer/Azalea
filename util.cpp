@@ -440,3 +440,49 @@ std::vector<Piece> detectChecker(const Board& b) {
 
     return checker;
 }
+
+/******************************************************************************
+ * Function that detects pinned pieces and returns a vector containing their
+ * indicies.
+ */
+std::vector<int> detectPinnedPieces(const Board& b) {
+    std::vector<int> indicies;
+
+    const int ownKingIndex = (b.whiteToMove ? b.whiteKing.location
+					    : b.blackKing.location);
+    const Color ownColor = (b.whiteToMove ? Color::white : Color::black);
+    const Color enemyColor = (b.whiteToMove ? Color::black : Color::white);
+
+    // rook-like
+    const std::vector<int> dir{-10, 10, -1, 1}; // TODO: maybe constexpr?
+    for (auto d=dir.begin(); d!=dir.end(); d++) {
+	newdir:
+	for (int i=1; i<8; i++) {
+    	    const auto sq = b.mailbox[ownKingIndex + *d*i];
+    	    if (sq.type == PieceType::empty) continue;
+    	    if (sq.type == PieceType::outOfBoard) break;
+	    if (sq.color == enemyColor) break;
+	    // not empty, not oob, no enemy -> friendly piece
+	    const int potentialPin = ownKingIndex + *d*i;
+	    // now continue in this direction until we find
+	    // an enemy rook-like slieder
+	    for (int j=1; j<7; j++) {
+		const auto sq2 = b.mailbox[potentialPin + *d*j];
+		if (sq2.type == PieceType::empty) continue;
+		if (sq2.type == PieceType::outOfBoard) {d++; goto newdir;}
+		if (sq2.color == ownColor) {d++; goto newdir;}
+		// not empty, not oob, no fren -> enemy!
+		if (sq2.type == PieceType::rook
+			or sq2.type == PieceType::queen) {
+				indicies.push_back(potentialPin);
+
+		} else {d++; goto newdir;}
+	    }
+    	}
+    }
+
+    // bishop-like TODO!!!
+
+
+    return indicies;
+}

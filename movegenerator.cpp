@@ -20,9 +20,12 @@ void generateLegalMoves(const Board& b, std::vector<Move>& movelist) {
     const auto checker = detectChecker(b);
     if (checker.size() == 2) return; // double check, only king moves no castle
     
+    // detect pinned pieces
+    const auto pinnedIndicies = detectPinnedPieces(b);
 
     // if we are in single check do some stupid stuff
     // TODO
+    
 }
 
 void generateKingMoves(const Board& b, std::vector<Move>& movelist) {

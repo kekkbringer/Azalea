@@ -177,4 +177,16 @@ TEST_CASE("testing movegen...", "[movegen]") {
 	REQUIRE(std::find(checker13.begin(), checker13.end(),
 	    Piece(Color::black, PieceType::knight, 55)) != checker13.end());
     }
+
+    SECTION("pinned piece detection") {
+	const Board b = fen("3r2k1/8/8/8/3N4/3K4/8/8 w - - 0 1");
+	const auto pinned = detectPinnedPieces(b);
+	REQUIRE(pinned.size() == 1);
+	REQUIRE(pinned[0] == 64);
+
+	const Board b2 = fen("8/8/1Q2rk2/2K5/8/8/8/8 b - - 0 1");
+	const auto pinned2 = detectPinnedPieces(b2);
+	REQUIRE(pinned2.size() == 1);
+	REQUIRE(pinned2[0] == 45);
+    }
 }

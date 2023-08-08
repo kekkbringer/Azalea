@@ -15,10 +15,9 @@ enum class Color {white, black};
 enum class PieceType {pawn, knight, bishop, rook, queen, king,
 			empty, outOfBoard};
 
-// enum class for pinning state
-enum class PinState {unpinned,
-			vertical, horizontal,
-			diagonal, antidiagonal};
+// enum class for directions
+enum class Direction {vertical, horizontal, diagonal, antidiagonal};
+
 
 /******************************************************************************
  * PieceInfo class
@@ -61,7 +60,6 @@ public:
     Color color;
     PieceType type;
     int location; // index on the 10x12 board
-    PinState pinState;
 
     Piece()
 	: color(Color::white)
