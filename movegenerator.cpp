@@ -14,7 +14,15 @@
  */
 void generateLegalMoves(const Board& b, std::vector<Move>& movelist) {
     movelist.resize(0);
-    generateKingMoves(b, movelist);
+    generateKingMoves(b, movelist); // no castling
+    
+    // are we in check?
+    const auto checker = detectChecker(b);
+    if (checker.size() == 2) return; // double check, only king moves no castle
+    
+
+    // if we are in single check do some stupid stuff
+    // TODO
 }
 
 void generateKingMoves(const Board& b, std::vector<Move>& movelist) {

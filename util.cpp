@@ -257,3 +257,186 @@ bool isAttackedNoKing(const Board& b, const int index) {
 
     return false;
 }
+
+/******************************************************************************
+ * Function that detects all currenct pieces giving check to the king of the
+ * moving side and returns a vector of these pieces.
+ */
+std::vector<Piece> detectChecker(const Board& b) {
+    std::vector<Piece> checker;
+
+    const int ownKingLocation = (b.whiteToMove ? b.whiteKing.location
+						: b.blackKing.location);
+    const Color ownColor = (b.whiteToMove ? Color::white : Color::black);
+    const Color enemyColor = (b.whiteToMove ? Color::black : Color::white);
+
+    ///////////////////////////////////////////////////////
+    //                   Rook and Queen                  //
+    ///////////////////////////////////////////////////////
+    // north
+    for (int i=1; i<8; i++) {
+	const auto sq = b.mailbox[ownKingLocation - 10*i];
+	if (sq.type == PieceType::empty) continue;
+	if (sq.type == PieceType::outOfBoard) break;
+	if (sq.color == ownColor) break;
+	if (sq.type == PieceType::rook or sq.type == PieceType::queen) {
+	    checker.push_back(
+			Piece(enemyColor, sq.type, ownKingLocation - 10*i));
+	} else {
+	    break;
+	}
+    }
+
+    // south
+    for (int i=1; i<8; i++) {
+	const auto sq = b.mailbox[ownKingLocation + 10*i];
+	if (sq.type == PieceType::empty) continue;
+	if (sq.type == PieceType::outOfBoard) break;
+	if (sq.color == ownColor) break;
+	if (sq.type == PieceType::rook or sq.type == PieceType::queen) {
+	    checker.push_back(
+			Piece(enemyColor, sq.type, ownKingLocation + 10*i));
+	} else {
+	    break;
+	}
+    }
+
+    // west
+    for (int i=1; i<8; i++) {
+	const auto sq = b.mailbox[ownKingLocation - i];
+	if (sq.type == PieceType::empty) continue;
+	if (sq.type == PieceType::outOfBoard) break;
+	if (sq.color == ownColor) break;
+	if (sq.type == PieceType::rook or sq.type == PieceType::queen) {
+	    checker.push_back(
+			Piece(enemyColor, sq.type, ownKingLocation - 1*i));
+	} else {
+	    break;
+	}
+    }
+
+    // east
+    for (int i=1; i<8; i++) {
+	const auto sq = b.mailbox[ownKingLocation + i];
+	if (sq.type == PieceType::empty) continue;
+	if (sq.type == PieceType::outOfBoard) break;
+	if (sq.color == ownColor) break;
+	if (sq.type == PieceType::rook or sq.type == PieceType::queen) {
+	    checker.push_back(
+			Piece(enemyColor, sq.type, ownKingLocation + i));
+	} else {
+	    break;
+	}
+    }
+
+    ///////////////////////////////////////////////////////
+    //                 Bishop and Queen                  //
+    ///////////////////////////////////////////////////////
+    // north west
+    for (int i=1; i<8; i++) {
+	const auto sq = b.mailbox[ownKingLocation - 11*i];
+	if (sq.type == PieceType::empty) continue;
+	if (sq.type == PieceType::outOfBoard) break;
+	if (sq.color == ownColor) break;
+	if (sq.type == PieceType::bishop or sq.type == PieceType::queen) {
+	    checker.push_back(
+			Piece(enemyColor, sq.type, ownKingLocation - 11*i));
+	} else {
+	    break;
+	}
+    }
+
+    // north east
+    for (int i=1; i<8; i++) {
+	const auto sq = b.mailbox[ownKingLocation - 9*i];
+	if (sq.type == PieceType::empty) continue;
+	if (sq.type == PieceType::outOfBoard) break;
+	if (sq.color == ownColor) break;
+	if (sq.type == PieceType::bishop or sq.type == PieceType::queen) {
+	    checker.push_back(
+			Piece(enemyColor, sq.type, ownKingLocation - 9*i));
+	} else {
+	    break;
+	}
+    }
+
+    // south west
+    for (int i=1; i<8; i++) {
+	const auto sq = b.mailbox[ownKingLocation + 9*i];
+	if (sq.type == PieceType::empty) continue;
+	if (sq.type == PieceType::outOfBoard) break;
+	if (sq.color == ownColor) break;
+	if (sq.type == PieceType::bishop or sq.type == PieceType::queen) {
+	    checker.push_back(
+			Piece(enemyColor, sq.type, ownKingLocation + 9*i));
+	} else {
+	    break;
+	}
+    }
+
+    // south east
+    for (int i=1; i<8; i++) {
+	const auto sq = b.mailbox[ownKingLocation + 11*i];
+	if (sq.type == PieceType::empty) continue;
+	if (sq.type == PieceType::outOfBoard) break;
+	if (sq.color == ownColor) break;
+	if (sq.type == PieceType::bishop or sq.type == PieceType::queen) {
+	    checker.push_back(
+			Piece(enemyColor, sq.type, ownKingLocation + 11*i));
+	} else {
+	    break;
+	}
+    }
+
+    ///////////////////////////////////////////////////////
+    //                      Knights                      //
+    ///////////////////////////////////////////////////////
+    if (b.mailbox[ownKingLocation + 21].type == PieceType::knight
+	and b.mailbox[ownKingLocation + 21].color == enemyColor)
+	    checker.push_back(
+		Piece(enemyColor, PieceType::knight, ownKingLocation + 21));
+    if (b.mailbox[ownKingLocation - 21].type == PieceType::knight
+	and b.mailbox[ownKingLocation - 21].color == enemyColor)
+	    checker.push_back(
+		Piece(enemyColor, PieceType::knight, ownKingLocation - 21));
+    if (b.mailbox[ownKingLocation + 19].type == PieceType::knight
+	and b.mailbox[ownKingLocation + 19].color == enemyColor)
+	    checker.push_back(
+		Piece(enemyColor, PieceType::knight, ownKingLocation + 19));
+    if (b.mailbox[ownKingLocation - 19].type == PieceType::knight
+	and b.mailbox[ownKingLocation - 19].color == enemyColor)
+	    checker.push_back(
+		Piece(enemyColor, PieceType::knight, ownKingLocation - 19));
+    if (b.mailbox[ownKingLocation + 12].type == PieceType::knight
+	and b.mailbox[ownKingLocation + 12].color == enemyColor)
+	    checker.push_back(
+		Piece(enemyColor, PieceType::knight, ownKingLocation + 12));
+    if (b.mailbox[ownKingLocation - 12].type == PieceType::knight
+	and b.mailbox[ownKingLocation - 12].color == enemyColor)
+	    checker.push_back(
+		Piece(enemyColor, PieceType::knight, ownKingLocation - 12));
+    if (b.mailbox[ownKingLocation + 8].type == PieceType::knight
+	and b.mailbox[ownKingLocation + 8].color == enemyColor)
+	    checker.push_back(
+		Piece(enemyColor, PieceType::knight, ownKingLocation + 8));
+    if (b.mailbox[ownKingLocation - 8].type == PieceType::knight
+	and b.mailbox[ownKingLocation - 8].color == enemyColor)
+	    checker.push_back(
+		Piece(enemyColor, PieceType::knight, ownKingLocation - 8));
+
+    ///////////////////////////////////////////////////////
+    //                       Pawns                       //
+    ///////////////////////////////////////////////////////
+    const int pawnAtt1 = (b.whiteToMove ? 11 : -11);
+    const int pawnAtt2 = (b.whiteToMove ?  9 :  -9);
+    if (b.mailbox[ownKingLocation - pawnAtt1].type == PieceType::pawn
+	and b.mailbox[ownKingLocation - pawnAtt1].color == enemyColor)
+	    checker.push_back(
+		Piece(enemyColor, PieceType::pawn, ownKingLocation-pawnAtt1));
+    if (b.mailbox[ownKingLocation - pawnAtt2].type == PieceType::pawn
+	and b.mailbox[ownKingLocation - pawnAtt2].color == enemyColor)
+	    checker.push_back(
+		Piece(enemyColor, PieceType::pawn, ownKingLocation-pawnAtt2));
+
+    return checker;
+}

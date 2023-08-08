@@ -20,3 +20,9 @@ size_t toIndex(std::string s);
  * not a blocker, this is for movegen purposes.
  */
 bool isAttackedNoKing(const Board& b, const int index);
+
+/******************************************************************************
+ * Function that detects all currenct pieces giving check to the king of the
+ * moving side and returns a vector of these pieces.
+ */
+std::vector<Piece> detectChecker(const Board& b);
