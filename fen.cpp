@@ -1,6 +1,7 @@
 #include "fen.hpp"
 
 #include <string>
+#include <iostream> //to be deleted
 
 #include "params.hpp"
 #include "statistics.hpp"
@@ -13,7 +14,6 @@
 GameState fen(std::string f) {
     if constexpr (azalea::statistics)
 	outputStats("called function 'fen' with string " + f + "\n");
-    Board b = Board();
     GameState gs;
     gs.whiteToMove = true;
     gs.whiteShort = false;
@@ -31,51 +31,51 @@ GameState fen(std::string f) {
 	const char c = *it;
 	switch (c) {
 	    case 'P':
-		b.wPawns |= (1ULL << index);
+		gs.board.wPawns |= (1ULL << index);
 		index--;
 		break;
 	    case 'N':
-		b.wKnights |= (1ULL << index);
+		gs.board.wKnights |= (1ULL << index);
 		index--;
 		break;
 	    case 'B':
-		b.wBishops |= (1ULL << index);
+		gs.board.wBishops |= (1ULL << index);
 		index--;
 		break;
 	    case 'R':
-		b.wRooks |= (1ULL << index);
+		gs.board.wRooks |= (1ULL << index);
 		index--;
 		break;
 	    case 'Q':
-		b.wQueens |= (1ULL << index);
+		gs.board.wQueens |= (1ULL << index);
 		index--;
 		break;
 	    case 'K':
-		b.wKing |= (1ULL << index);
+		gs.board.wKing |= (1ULL << index);
 		index--;
 		break;
 	    case 'p':
-		b.bPawns |= (1ULL << index);
+		gs.board.bPawns |= (1ULL << index);
 		index--;
 		break;
 	    case 'n':
-		b.bKnights |= (1ULL << index);
+		gs.board.bKnights |= (1ULL << index);
 		index--;
 		break;
 	    case 'b':
-		b.bBishops |= (1ULL << index);
+		gs.board.bBishops |= (1ULL << index);
 		index--;
 		break;
 	    case 'r':
-		b.bRooks |= (1ULL << index);
+		gs.board.bRooks |= (1ULL << index);
 		index--;
 		break;
 	    case 'q':
-		b.bQueens |= (1ULL << index);
+		gs.board.bQueens |= (1ULL << index);
 		index--;
 		break;
 	    case 'k':
-		b.bKing |= (1ULL << index);
+		gs.board.bKing |= (1ULL << index);
 		index--;
 		break;
 	    case '1':
@@ -103,13 +103,11 @@ GameState fen(std::string f) {
 		index -= 8;
 		break;
 	    case '/':
-		index--;
 		break;
 	    case ' ':
 		goto sidetomove;
 	}
     }
-    gs.board = b;
 
     // side to move
     sidetomove:
@@ -158,6 +156,12 @@ GameState fen(std::string f) {
 	gs.halfmoveClock *= 10;
 	gs.halfmoveClock += *it - '0';
     }
+
+    gs.board.white = gs.board.wPawns | gs.board.wKnights | gs.board.wBishops
+		    | gs.board.wRooks | gs.board.wQueens | gs.board.wKing;
+    gs.board.black = gs.board.bPawns | gs.board.bKnights | gs.board.bBishops
+		    | gs.board.bRooks | gs.board.bQueens | gs.board.bKing;
+    gs.board.occ = gs.board.white | gs.board.black;
 
     return gs;
 }

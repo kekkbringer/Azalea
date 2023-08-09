@@ -3,10 +3,9 @@
 #include <vector>
 
 #include "params.hpp"
-#include "statistics.hpp"
 #include "board.hpp"
 #include "move.hpp"
-#include "util.hpp"
+#include "raylookup.hpp"
 
 /******************************************************************************
  * Function that generates all legal moves in a given position. Returns the
@@ -14,4 +13,92 @@
  */
 void generateLegalMoves(const Board& b, std::vector<Move>& movelist) {
     movelist.resize(0);
+}
+
+bitb rookAttacks(const GameState& gs, const int index) {
+    bitb atks = 0ULL;
+    bitb atkray, blocker;
+    int sq; 
+
+    // north
+    atkray = nRays[index];
+    blocker = atkray & gs.board.occ;
+    if (blocker) {
+	sq = __builtin_ffsll(blocker) - 1;
+	atkray ^= nRays[sq];
+    }
+    atks |= atkray;
+
+    // east
+    atkray = eRays[index];
+    blocker = atkray & gs.board.occ;
+    if (blocker) {
+	sq = __builtin_ffsll(blocker) - 1;
+	atkray ^= eRays[sq];
+    }
+    atks |= atkray;
+
+    // south
+    atkray = sRays[index];
+    blocker = atkray & gs.board.occ;
+    if (blocker) {
+	sq = 63 - __builtin_clzll(blocker);
+	atkray ^= sRays[sq];
+    }
+    atks |= atkray;
+
+    // west
+    atkray = wRays[index];
+    blocker = atkray & gs.board.occ;
+    if (blocker) {
+	sq = 63 - __builtin_clzll(blocker);
+	atkray ^= wRays[sq];
+    }
+    atks |= atkray;
+
+    return atks;
+}
+
+bitb bishopAttacks(const GameState& gs, const int index) {
+    bitb atks = 0ULL;
+    bitb atkray, blocker;
+    int sq; 
+
+    // north east
+    atkray = neRays[index];
+    blocker = atkray & gs.board.occ;
+    if (blocker) {
+	sq = __builtin_ffsll(blocker) - 1;
+	atkray ^= neRays[sq];
+    }
+    atks |= atkray;
+
+    // north west
+    atkray = nwRays[index];
+    blocker = atkray & gs.board.occ;
+    if (blocker) {
+	sq = __builtin_ffsll(blocker) - 1;
+	atkray ^= nwRays[sq];
+    }
+    atks |= atkray;
+
+    // south west
+    atkray = swRays[index];
+    blocker = atkray & gs.board.occ;
+    if (blocker) {
+	sq = 63 - __builtin_clzll(blocker);
+	atkray ^= swRays[sq];
+    }
+    atks |= atkray;
+
+    // south east
+    atkray = seRays[index];
+    blocker = atkray & gs.board.occ;
+    if (blocker) {
+	sq = 63 - __builtin_clzll(blocker);
+	atkray ^= seRays[sq];
+    }
+    atks |= atkray;
+
+    return atks;
 }

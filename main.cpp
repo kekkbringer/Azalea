@@ -8,6 +8,7 @@
 #include "fen.hpp"
 #include "move.hpp"
 #include "movegenerator.hpp"
+#include "util.hpp"
 
 int main(int argc, char* argv[]) {
     std::cout << "Azalea " << azalea::majorVersion << "."
