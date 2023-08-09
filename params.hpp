@@ -1,5 +1,7 @@
 #pragma once
 
+typedef uint64_t bitb;
+
 namespace azalea {
     /**************************************************************************
      * Version section
