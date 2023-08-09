@@ -7,4 +7,4 @@
 /******************************************************************************
  * Function that reads in a fen string and returns the corresponding board.
  */
-Board fen(std::string f);
+GameState fen(std::string f);

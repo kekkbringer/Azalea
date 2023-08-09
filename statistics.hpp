@@ -26,8 +26,3 @@ void outputStats(const std::string text);
  * Function that dumps boot message to statfile, containing version info
  */
 void dumpBootMsg();
-
-/******************************************************************************
- * Function that dumps the state of 'board' to statfile.
- */
-void dumpBoard(const Board& board);

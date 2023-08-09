@@ -1,7 +1,6 @@
 #include "fen.hpp"
 
 #include <string>
-#include <iostream> // to be deleted
 
 #include "params.hpp"
 #include "statistics.hpp"
@@ -11,163 +10,112 @@
 /******************************************************************************
  * Function that reads in a fen string and returns the corresponding board.
  */
-Board fen(std::string f) {
+GameState fen(std::string f) {
     if constexpr (azalea::statistics)
 	outputStats("called function 'fen' with string " + f + "\n");
     Board b = Board();
+    GameState gs;
+    gs.whiteToMove = true;
+    gs.whiteShort = false;
+    gs.whiteLong = false;
+    gs.blackShort = false;
+    gs.blackLong = false;
+    gs.halfmoveClock = 0;
+    gs.epTarget = -1;
 
     auto it = f.begin();
 
     // piece placement
-    int index = 21;
-    int rank = 2;
+    int index = 63;
     for (;;it++) {
 	const char c = *it;
 	switch (c) {
 	    case 'P':
-		b.mailbox[index] = PieceInfo(Color::white, PieceType::pawn);
-		b.pieceList.push_back(
-			Piece(Color::white,
-			      PieceType::pawn,
-			      index)
-		);
-		index++;
+		b.wPawns |= (1ULL << index);
+		index--;
 		break;
 	    case 'N':
-		b.mailbox[index] = PieceInfo(Color::white, PieceType::knight);
-		b.pieceList.push_back(
-			Piece(Color::white,
-			      PieceType::knight,
-			      index)
-		);
-		index++;
+		b.wKnights |= (1ULL << index);
+		index--;
 		break;
 	    case 'B':
-		b.mailbox[index] = PieceInfo(Color::white, PieceType::bishop);
-		b.pieceList.push_back(
-			Piece(Color::white,
-			      PieceType::bishop,
-			      index)
-		);
-		index++;
+		b.wBishops |= (1ULL << index);
+		index--;
 		break;
 	    case 'R':
-		b.mailbox[index] = PieceInfo(Color::white, PieceType::rook);
-		b.pieceList.push_back(
-			Piece(Color::white,
-			      PieceType::rook,
-			      index)
-		);
-		index++;
+		b.wRooks |= (1ULL << index);
+		index--;
 		break;
 	    case 'Q':
-		b.mailbox[index] = PieceInfo(Color::white, PieceType::queen);
-		b.pieceList.push_back(
-			Piece(Color::white,
-			      PieceType::queen,
-			      index)
-		);
-		index++;
+		b.wQueens |= (1ULL << index);
+		index--;
 		break;
 	    case 'K':
-		b.mailbox[index] = PieceInfo(Color::white, PieceType::king);
-		b.whiteKing =
-			Piece(Color::white,
-			      PieceType::king,
-			      index);
-		index++;
+		b.wKing |= (1ULL << index);
+		index--;
 		break;
 	    case 'p':
-		b.mailbox[index] = PieceInfo(Color::black, PieceType::pawn);
-		b.pieceList.push_back(
-			Piece(Color::black,
-			      PieceType::pawn,
-			      index)
-		);
-		index++;
+		b.bPawns |= (1ULL << index);
+		index--;
 		break;
 	    case 'n':
-		b.mailbox[index] = PieceInfo(Color::black, PieceType::knight);
-		b.pieceList.push_back(
-			Piece(Color::black,
-			      PieceType::knight,
-			      index)
-		);
-		index++;
+		b.bKnights |= (1ULL << index);
+		index--;
 		break;
 	    case 'b':
-		b.mailbox[index] = PieceInfo(Color::black, PieceType::bishop);
-		b.pieceList.push_back(
-			Piece(Color::black,
-			      PieceType::bishop,
-			      index)
-		);
-		index++;
+		b.bBishops |= (1ULL << index);
+		index--;
 		break;
 	    case 'r':
-		b.mailbox[index] = PieceInfo(Color::black, PieceType::rook);
-		b.pieceList.push_back(
-			Piece(Color::black,
-			      PieceType::rook,
-			      index)
-		);
-		index++;
+		b.bRooks |= (1ULL << index);
+		index--;
 		break;
 	    case 'q':
-		b.mailbox[index] = PieceInfo(Color::black, PieceType::queen);
-		b.pieceList.push_back(
-			Piece(Color::black,
-			      PieceType::queen,
-			      index)
-		);
-		index++;
+		b.bQueens |= (1ULL << index);
+		index--;
 		break;
 	    case 'k':
-		b.mailbox[index] = PieceInfo(Color::black, PieceType::king);
-		b.blackKing =
-			Piece(Color::black,
-			      PieceType::king,
-			      index);
-		index++;
+		b.bKing |= (1ULL << index);
+		index--;
 		break;
 	    case '1':
-		index += 1;
+		index--;
 		break;
 	    case '2':
-		index += 2;
+		index -= 2;
 		break;
 	    case '3':
-		index += 3;
+		index -= 3;
 		break;
 	    case '4':
-		index += 4;
+		index -= 4;
 		break;
 	    case '5':
-		index += 5;
+		index -= 5;
 		break;
 	    case '6':
-		index += 6;
+		index -= 6;
 		break;
 	    case '7':
-		index += 7;
+		index -= 7;
 		break;
 	    case '8':
-		index += 8;
+		index -= 8;
 		break;
 	    case '/':
-		rank++;
-		index = rank*10 + 1;
+		index--;
 		break;
 	    case ' ':
 		goto sidetomove;
 	}
     }
+    gs.board = b;
 
     // side to move
     sidetomove:
     it++; // blank space
     char c = *it++;
-    if (c=='b') b.whiteToMove = false;
+    if (c=='b') gs.whiteToMove = false;
 
     // castling rights
     it++; // blank space
@@ -175,16 +123,16 @@ Board fen(std::string f) {
 	c = *it;
 	switch (c) {
 	    case 'K':
-		b.whiteShort = true;
+		gs.whiteShort = true;
 		break;
 	    case 'Q':
-		b.whiteLong = true;
+		gs.whiteLong = true;
 		break;
 	    case 'k':
-		b.blackShort = true;
+		gs.blackShort = true;
 		break;
 	    case 'q':
-		b.blackLong = true;
+		gs.blackLong = true;
 		break;
 	    case '-':
 		it++;
@@ -200,19 +148,16 @@ Board fen(std::string f) {
     if (*it != '-') {
 	std::string ep(1, *it++);
 	ep += *it++;
-	b.enPassantTarget = toIndex(ep);
+	gs.epTarget = toIndex(ep);
     } 
 
     // halfmove clock
     it++; // blank space
-    b.halfmoveClock = *++it - '0';
+    gs.halfmoveClock = *++it - '0';
     if (*++it != ' ') {
-	b.halfmoveClock *= 10;
-	b.halfmoveClock += *it - '0';
+	gs.halfmoveClock *= 10;
+	gs.halfmoveClock += *it - '0';
     }
 
-    // debug output
-    if constexpr (azalea::statistics) dumpBoard(b);
-
-    return b;
+    return gs;
 }

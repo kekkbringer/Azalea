@@ -19,7 +19,8 @@ int main(int argc, char* argv[]) {
     // print boot message to statfile
     if constexpr (azalea::statistics) dumpBootMsg();
 
-    Board b = fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+    GameState gs
+	= fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
 
     return 0; // TO BE DELETED
 

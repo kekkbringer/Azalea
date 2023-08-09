@@ -1,5 +1,7 @@
 #pragma once
 
+#include <vector>
+
 #include "params.hpp"
 #include "board.hpp"
 #include "move.hpp"
@@ -9,4 +11,3 @@
  * number of legal moves and gives the moves themself on 'movelist'.
  */
 void generateLegalMoves(const Board& b, std::vector<Move>& movelist);
-void generateKingMoves(const Board& b, std::vector<Move>& movelist);

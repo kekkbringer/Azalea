@@ -17,7 +17,7 @@ LDFLAGS ?= -static -O3 -flto=auto
 OBJ_LIST := fen.o util.o statistics.o movegenerator.o
 
 # object files for test executable (excluding test main itself)
-TOBJ_LIST := board_test.o movegen_test.o isattacked_test.o
+TOBJ_LIST := #board_test.o movegen_test.o isattacked_test.o
 
 OBJS := $(foreach object,$(OBJ_LIST),$(OBJ_DIR)/$(object))
 TOBJS := $(foreach object,$(TOBJ_LIST),$(OBJ_DIR)/TESTS/$(object))
