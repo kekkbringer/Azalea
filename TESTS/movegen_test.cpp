@@ -153,6 +153,13 @@ TEST_CASE("Testing movegen...", "[board]") {
 	generateLegalMoves(gs, ml);
 	REQUIRE(ml.size() == 3);
     }
+    SECTION("bishop moves simple") {
+	std::vector<Move> ml;
+
+	auto gs = fen("8/8/4nk2/8/2B5/2K5/8/5n2 w - - 0 1");
+	generateLegalMoves(gs, ml);
+	REQUIRE(ml.size() == 14);
+    }
     SECTION("pinned piece detection") {
 	auto gs = fen("8/8/8/8/8/2KN1rk1/8/8 w - - 0 1");
 	auto pinned = detectLaterallyPinnedPieces(gs);
@@ -170,5 +177,127 @@ TEST_CASE("Testing movegen...", "[board]") {
 	pinned = detectLaterallyPinnedPieces(gs);
 	pinned |= detectDiagonallyPinnedPieces(gs);
 	REQUIRE(pinned == 17626545782784ULL);
+    }
+    SECTION("easy movegen with pinned pieces") {
+	std::vector<Move> ml;
+
+	auto gs = fen("8/5k2/5b2/8/3R4/2K5/8/8 w - - 0 1");
+	generateLegalMoves(gs, ml);
+	REQUIRE(ml.size() == 7);
+
+	gs = fen("8/3q1k2/8/8/3R4/8/8/3K4 w - - 0 1");
+	generateLegalMoves(gs, ml);
+	REQUIRE(ml.size() == 10);
+
+	gs = fen("8/4k3/4b3/8/8/2K5/4R3/8 b - - 0 1");
+	generateLegalMoves(gs, ml);
+	REQUIRE(ml.size() == 7);
+
+	gs = fen("8/8/4qk2/8/2B5/1K6/8/8 w - - 0 1");
+	generateLegalMoves(gs, ml);
+	REQUIRE(ml.size() == 9);
+    }
+    SECTION("queen stuff") {
+	std::vector<Move> ml;
+
+	auto gs = fen("8/8/7k/8/2Q5/8/1K6/8 w - - 0 1");
+	generateLegalMoves(gs, ml);
+	REQUIRE(ml.size() == 33);
+
+	gs = fen("8/8/7k/8/1KQ2r2/8/8/8 w - - 0 1");
+	generateLegalMoves(gs, ml);
+	REQUIRE(ml.size() == 10);
+
+	gs = fen("8/8/4qk2/8/2Q5/8/K7/8 w - - 0 1");
+	generateLegalMoves(gs, ml);
+	REQUIRE(ml.size() == 8);
+    }
+    SECTION("knight stuff") {
+	std::vector<Move> ml;
+
+	auto gs = fen("k7/8/8/8/3K4/5N2/8/8 w - - 0 1");
+	generateLegalMoves(gs, ml);
+	REQUIRE(ml.size() == 15);
+
+	gs = fen("8/8/8/8/8/8/4qk2/KN3r2 w - - 0 1");
+	generateLegalMoves(gs, ml);
+	REQUIRE(ml.size() == 0);
+
+	gs = fen("1rN5/q6k/8/8/8/K7/8/8 w - - 0 1");
+	generateLegalMoves(gs, ml);
+	REQUIRE(ml.size() == 1);
+    }
+    SECTION("white pawns") {
+	std::vector<Move> ml;
+
+	auto gs = fen("8/8/8/8/8/7n/PPP4P/K7 w - - 0 1");
+	generateLegalMoves(gs, ml);
+	REQUIRE(ml.size() == 7);
+
+	gs = fen("7k/8/8/8/3P4/8/8/K7 w - - 0 1");
+	generateLegalMoves(gs, ml);
+	REQUIRE(ml.size() == 4);
+
+	gs = fen("7k/2P5/8/8/8/8/8/K7 w - - 0 1");
+	generateLegalMoves(gs, ml);
+	REQUIRE(ml.size() == 7);
+
+	gs = fen("2n4k/2P5/8/8/8/8/8/K7 w - - 0 1");
+	generateLegalMoves(gs, ml);
+	REQUIRE(ml.size() == 3);
+
+	// pinned
+	gs = fen("8/8/8/6k1/8/8/1K1P2r1/8 w - - 0 1");
+	generateLegalMoves(gs, ml);
+	REQUIRE(ml.size() == 8);
+
+	gs = fen("8/8/8/6k1/8/1K1P2r1/8/8 w - - 0 1");
+	generateLegalMoves(gs, ml);
+	REQUIRE(ml.size() == 8);
+
+	gs = fen("3r4/8/8/3P2k1/8/8/3K4/8 w - - 0 1");
+	generateLegalMoves(gs, ml);
+	REQUIRE(ml.size() == 9);
+
+	gs = fen("3r4/8/8/6k1/8/8/3P4/3K4 w - - 0 1");
+	generateLegalMoves(gs, ml);
+	REQUIRE(ml.size() == 6);
+
+	gs = fen("8/8/8/6k1/5q2/8/3P4/2K5 w - - 0 1");
+	generateLegalMoves(gs, ml);
+	REQUIRE(ml.size() == 4);
+    }
+    SECTION("black pawns") {
+	std::vector<Move> ml;
+
+	auto gs = fen("7k/p4ppp/Q7/8/8/3K4/8/8 b - - 0 1");
+	generateLegalMoves(gs, ml);
+	REQUIRE(ml.size() == 7);
+
+	gs = fen("7k/8/8/4p3/8/8/8/K7 b - - 0 1");
+	generateLegalMoves(gs, ml);
+	REQUIRE(ml.size() == 4);
+
+	gs = fen("7k/8/8/K7/8/8/4p3/8 b - - 0 1");
+	generateLegalMoves(gs, ml);
+	REQUIRE(ml.size() == 7);
+
+	gs = fen("7k/8/8/8/8/8/4p3/4K3 b - - 0 1");
+	generateLegalMoves(gs, ml);
+	REQUIRE(ml.size() == 3);
+
+	// pinned
+	gs = fen("3k4/3p4/8/8/8/8/3Q4/2K5 b - - 0 1");
+	generateLegalMoves(gs, ml);
+	REQUIRE(ml.size() == 6);
+
+	gs = fen("2k5/3p4/8/8/6Q1/8/8/2K5 b - - 0 1");
+	generateLegalMoves(gs, ml);
+	REQUIRE(ml.size() == 4);
+
+	gs = fen("8/1k1p2R1/8/8/8/8/8/2K5 b - - 0 1");
+	generateLegalMoves(gs, ml);
+	REQUIRE(ml.size() == 8);
+
     }
 }

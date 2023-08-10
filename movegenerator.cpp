@@ -124,16 +124,27 @@ void generateLegalMoves(const GameState& gs, std::vector<Move>& movelist) {
     ///////////////////////////////////////////////////////
     //                  pinned pieces                    //
     ///////////////////////////////////////////////////////
-    // detect all pinned pieces... TODO
+    // detect all pinned pieces, differentiate between horizontal/vertical
+    // pins and diagonal/antidiagonal pins
     bitb latPinned = detectLaterallyPinnedPieces(gs);
     bitb diaPinned = detectDiagonallyPinnedPieces(gs);
     bitb pinned = latPinned | diaPinned;
 
     ///////////////////////////////////////////////////////
+    //                      queens                       //
+    ///////////////////////////////////////////////////////
+    // queens are just handled together with rooks and bishops
+    const bitb ownQueens = (b.wQueens | b.bQueens) & ~enemies;
+
+    ///////////////////////////////////////////////////////
     //                       rooks                       //
     ///////////////////////////////////////////////////////
     bitb ownRooks = (b.wRooks | b.bRooks) & ~enemies;
-    ownRooks &= ~pinned; // TODO this needs modification
+    ownRooks |= ownQueens;
+    // pinned rooks... diagonally pinned rooks can never move...
+    // laterally rooks need special care
+    bitb pinnedRooks = ownRooks & latPinned;
+    ownRooks &= ~pinned; // easy to handle
     while (ownRooks) {
 	const int from = BSF(ownRooks);
 	ownRooks &= ownRooks - 1;
@@ -152,6 +163,270 @@ void generateLegalMoves(const GameState& gs, std::vector<Move>& movelist) {
 	    pushes &= pushes - 1;
 	    movelist.push_back(Move(from, to, false, false, false,
 						false, false, ' '));
+	}
+    }
+    // for pinned rooks the rooklike attacks of the king on an empty board are
+    // calculated, as well as the rooks true attacks. Both are combined with a
+    // bitwise AND to obtain the final square the piece can move to.
+    while (pinnedRooks) {
+	const bitb kingRays = rookAttacks(0x0ULL, ownKingIndex); // this could
+								 // be move out
+								 // of the loop
+	const int from = BSF(pinnedRooks);
+	pinnedRooks &= pinnedRooks - 1;
+	const bitb pieceRays = rookAttacks(b.occ, from);
+	const bitb atks = pieceRays & kingRays;
+	bitb pushes = atks & pushMask;
+	bitb captures = atks & captureMask;
+	// add moves to movelist, captures first
+	while (captures) {
+	    const int to = BSF(captures);
+	    captures &= captures - 1;
+	    movelist.push_back(Move(from, to, true, false, false,
+						false, false, ' '));
+	}
+	while (pushes) {
+	    const int to = BSF(pushes);
+	    pushes &= pushes - 1;
+	    movelist.push_back(Move(from, to, false, false, false,
+						false, false, ' '));
+	}
+    }
+
+    ///////////////////////////////////////////////////////
+    //                      bishops                      //
+    ///////////////////////////////////////////////////////
+    bitb ownBishops = (b.wBishops | b.bBishops) & ~enemies;
+    ownBishops |= ownQueens;
+    // pinned bishops... laterally pinned bishops can never move...
+    // diagonally pinned bishops need special care
+    bitb pinnedBishops = ownBishops & diaPinned;
+    ownBishops &= ~pinned; // easy to handle
+    while (ownBishops) {
+	const int from = BSF(ownBishops);
+	ownBishops &= ownBishops - 1;
+	const bitb atks = bishopAttacks(b.occ, from);
+	bitb pushes = atks & pushMask;
+	bitb captures = atks & captureMask;
+	// add moves to movelist, captures first
+	while (captures) {
+	    const int to = BSF(captures);
+	    captures &= captures - 1;
+	    movelist.push_back(Move(from, to, true, false, false,
+						false, false, ' '));
+	}
+	while (pushes) {
+	    const int to = BSF(pushes);
+	    pushes &= pushes - 1;
+	    movelist.push_back(Move(from, to, false, false, false,
+						false, false, ' '));
+	}
+    }
+    // for pinned bishops the bishoplike attacks of the king on an empty board
+    // are calculated, as well as the bishops true attacks. Both are combined
+    // with a bitwise AND to obtain the final square the piece can move to.
+    while (pinnedBishops) {
+	const bitb kingRays = bishopAttacks(0x0ULL, ownKingIndex); //this could
+								 // be move out
+								 // of the loop
+	const int from = BSF(pinnedBishops);
+	pinnedBishops &= pinnedBishops - 1;
+	const bitb pieceRays = bishopAttacks(b.occ, from);
+	const bitb atks = pieceRays & kingRays;
+	bitb pushes = atks & pushMask;
+	bitb captures = atks & captureMask;
+	// add moves to movelist, captures first
+	while (captures) {
+	    const int to = BSF(captures);
+	    captures &= captures - 1;
+	    movelist.push_back(Move(from, to, true, false, false,
+						false, false, ' '));
+	}
+	while (pushes) {
+	    const int to = BSF(pushes);
+	    pushes &= pushes - 1;
+	    movelist.push_back(Move(from, to, false, false, false,
+						false, false, ' '));
+	}
+    }
+
+    ///////////////////////////////////////////////////////
+    //                      knights                      //
+    ///////////////////////////////////////////////////////
+    bitb ownKnights = (b.wKnights | b.bKnights) & ~enemies;
+    // pinned knights can never move
+    ownKnights &= ~pinned;
+    while (ownKnights) {
+	const int from = BSF(ownKnights);
+	ownKnights &= ownKnights - 1;
+	const bitb atks = knightAttacks[from];
+	bitb pushes = atks & pushMask;
+	bitb captures = atks & captureMask;
+	// add moves to movelist, captures first
+	while (captures) {
+	    const int to = BSF(captures);
+	    captures &= captures - 1;
+	    movelist.push_back(Move(from, to, true, false, false,
+						false, false, ' '));
+	}
+	while (pushes) {
+	    const int to = BSF(pushes);
+	    pushes &= pushes - 1;
+	    movelist.push_back(Move(from, to, false, false, false,
+						false, false, ' '));
+	}
+    }
+
+    ///////////////////////////////////////////////////////
+    //                       pawns                       //
+    ///////////////////////////////////////////////////////
+    // pushes
+    constexpr bitb rank2 = 0xff00ULL;
+    constexpr bitb rank7 = 0xff000000000000ULL;
+    // white pawns
+    if (gs.whiteToMove) {
+	bitb ownPawns = b.wPawns;
+	// diagonally pinned pawns can never push
+	ownPawns &= ~diaPinned;
+	// take laterally pinned pawns for later
+	bitb pinnedPawns = ownPawns & latPinned;
+	// let only non-pinned pawns remain
+	ownPawns &= ~latPinned;
+	bitb pushes = ownPawns << 8; // push
+	bitb freePushes = pushes & ~b.occ; // free?
+	freePushes &= pushMask; // on pushMask?
+	while (freePushes) {
+	    const int to = BSF(freePushes);
+	    freePushes &= freePushes - 1;
+	    if (to>55) { // promotion!
+		movelist.push_back(Move(to-8, to, false, false, false,
+						    false, true, 'n'));
+		movelist.push_back(Move(to-8, to, false, false, false,
+						    false, true, 'b'));
+		movelist.push_back(Move(to-8, to, false, false, false,
+						    false, true, 'r'));
+		movelist.push_back(Move(to-8, to, false, false, false,
+						    false, true, 'q'));
+
+	    } else {
+		movelist.push_back(Move(to-8, to, false, false, false,
+						    false, false, ' '));
+	    }
+	}
+
+	// double pawn pushes...
+	// push the pawns from the 2nd rank once, then check if this push was
+	// not occupied. If so push again, check if free and check if in push-
+	// mask
+	bitb freeDoublePushes = (ownPawns & rank2) << 8; // first push
+	freeDoublePushes &= ~b.occ; // free?
+	freeDoublePushes = freeDoublePushes << 8; // second push
+	freeDoublePushes &= ~b.occ; // free?
+	freeDoublePushes &= pushMask; // second push on pushMask?
+	while (freeDoublePushes) {
+	    const int to = BSF(freeDoublePushes);
+	    freeDoublePushes &= freeDoublePushes - 1;
+	    movelist.push_back(Move(to-16, to, false, true, false,
+						false, false, ' '));
+	}
+
+	// pinned pawns
+	// so... these are either vertically or horizontally pinned...
+	// they can never promote.
+	// they can not push if the pin is horizontal
+	while (pinnedPawns) {
+	    const int from = BSF(pinnedPawns);
+	    pinnedPawns &= pinnedPawns - 1;
+	    // check for horizontal pin
+	    if (from/8 == ownKingIndex/8) continue;
+	    // so this pawn in vertically pinned, this means it can just move
+	    // normally, respecting the push mask
+	    bitb pawnMask = (1ULL << from);
+	    bitb singlePush = (pawnMask << 8) & ~b.occ & pushMask;
+	    if (singlePush) {
+		movelist.push_back(Move(from, from+8, false, false, false,
+						    false, false, ' '));
+	    }
+	    if (from < 16) // pawn on starting rank
+	    if ((pawnMask << 8) & ~b.occ) { // single push is free
+		const int to = from + 16;
+		if ((1ULL << to) & ~b.occ & pushMask) // double push allowed
+		movelist.push_back(Move(to-16, to, false, true, false,
+						    false, false, ' '));
+	    }
+	}
+
+    // black pawns
+    } else {
+	bitb ownPawns = b.bPawns;
+	// diagonally pinned pawns can never push
+	ownPawns &= ~diaPinned;
+	// take laterally pinned pawns for later
+	bitb pinnedPawns = ownPawns & latPinned;
+	// let only non-pinned pawns remain
+	ownPawns &= ~latPinned;
+	bitb pushes = ownPawns >> 8; // push
+	bitb freePushes = pushes & ~b.occ; // free?
+	freePushes &= pushMask; // on pushMask?
+	while (freePushes) {
+	    const int to = BSF(freePushes);
+	    freePushes &= freePushes - 1;
+	    if (to<8) { // promotion!
+		movelist.push_back(Move(to+8, to, false, false, false,
+						    false, true, 'n'));
+		movelist.push_back(Move(to+8, to, false, false, false,
+						    false, true, 'b'));
+		movelist.push_back(Move(to+8, to, false, false, false,
+						    false, true, 'r'));
+		movelist.push_back(Move(to+8, to, false, false, false,
+						    false, true, 'q'));
+
+	    } else {
+		movelist.push_back(Move(to+8, to, false, false, false,
+						    false, false, ' '));
+	    }
+	}
+
+	// double pawn pushes...
+	// push the pawns from the 7th rank once, then check if this push was
+	// not occupied. If so push again, check if free and check if in push-
+	// mask
+	bitb freeDoublePushes = (ownPawns & rank7) >> 8; // first push
+	freeDoublePushes &= ~b.occ; // free?
+	freeDoublePushes = freeDoublePushes >> 8; // second push
+	freeDoublePushes &= ~b.occ; // free?
+	freeDoublePushes &= pushMask; // second push on pushMask?
+	while (freeDoublePushes) {
+	    const int to = BSF(freeDoublePushes);
+	    freeDoublePushes &= freeDoublePushes - 1;
+	    movelist.push_back(Move(to+16, to, false, true, false,
+						false, false, ' '));
+	}
+
+	// pinned pawns
+	// so... these are either vertically or horizontally pinned...
+	// they can never promote.
+	// they can not push if the pin is horizontal
+	while (pinnedPawns) {
+	    const int from = BSF(pinnedPawns);
+	    pinnedPawns &= pinnedPawns - 1;
+	    // check for horizontal pin
+	    if (from/8 == ownKingIndex/8) continue;
+	    // so this pawn in vertically pinned, this means it can just move
+	    // normally, respecting the push mask
+	    bitb pawnMask = (1ULL << from);
+	    bitb singlePush = (pawnMask >> 8) & ~b.occ & pushMask;
+	    if (singlePush) {
+		movelist.push_back(Move(from, from-8, false, false, false,
+						    false, false, ' '));
+	    }
+	    if (from > 47) // pawn on starting rank
+	    if ((pawnMask >> 8) & ~b.occ) { // single push is free
+		const int to = from - 16;
+		if ((1ULL << to) & ~b.occ & pushMask) // double push allowed
+		movelist.push_back(Move(to+16, to, false, true, false,
+						    false, false, ' '));
+	    }
 	}
     }
 } // end of generateLegalMoves
