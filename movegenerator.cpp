@@ -440,8 +440,8 @@ void generateLegalMoves(const GameState& gs, std::vector<Move>& movelist) {
     // TODO obviously testing for all kings of captures (minus epCap)
     // TODO special case with epCap where two pawns vanish from the same rank
     if (gs.whiteToMove) {
-	bitb ownPawns = b.whitePawns & ~pinned;
-	bitb pinnedPawns = b.whitePawns & diaPinned;
+	bitb ownPawns = b.wPawns & ~pinned;
+	bitb pinnedPawns = b.wPawns & diaPinned;
 	// capture to the left (nw, <<9) so no pawns from the a file
 	bitb leftAtks = (ownPawns & ~aFile) << 9;
 	leftAtks &= captureMask;
@@ -488,19 +488,19 @@ void generateLegalMoves(const GameState& gs, std::vector<Move>& movelist) {
 	    const int from = BSF(pinnedPawns);
 	    pinnedPawns &= pinnedPawns - 1;
 	    // pinned along a diagonal
-	    if (diag[from] == diag[ownKingIndex]) {
+	    if (diags[from] == diags[ownKingIndex]) {
 		// here we can capture to the left, so +9
 		const int to = from + 9;
 		if ((1ULL<<to) & captureMask)
 		    movelist.push_back(Move(from, to, true, false, false,
-							false, false ' '));
+							false, false, ' '));
 	    // pinned along a antidiagonal
-	    } else if (antidiag[from] == antidiag[ownKingIndex]) {
+	    } else if (antidiags[from] == antidiags[ownKingIndex]) {
 		// here we can capture to the right, s0 +7
 		const int to = from + 7;
 		if ((1ULL<<to) & captureMask)
 		    movelist.push_back(Move(from, to, true, false, false,
-							false, false ' '));
+							false, false, ' '));
 	    }
 	}
     // black pawns (captures)
