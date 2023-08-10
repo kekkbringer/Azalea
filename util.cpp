@@ -1,6 +1,7 @@
 #include "util.hpp"
 
 #include <string>
+#include <iostream>
 
 #include "board.hpp"
 
@@ -13,4 +14,40 @@ int toIndex(std::string s) {
     index += (s[1]-'1')*8;
     index += 7-(s[0]-'a');
     return index;
+}
+
+/******************************************************************************
+ * Function that converts a index on the bitboard to its corresponding square
+ * in algebraic notation, e.g. "e4"
+ */
+constexpr std::string_view algsq[64]
+	    = {"h1", "g1", "f1", "e1", "d1", "c1", "b1", "a1",
+	       "h2", "g2", "f2", "e2", "d2", "c2", "b2", "a2",
+	       "h3", "g3", "f3", "e3", "d3", "c3", "b3", "a3",
+	       "h4", "g4", "f4", "e4", "d4", "c4", "b4", "a4",
+	       "h5", "g5", "f5", "e5", "d5", "c5", "b5", "a5",
+	       "h6", "g6", "f6", "e6", "d6", "c6", "b6", "a6",
+	       "h7", "g7", "f7", "e7", "d7", "c7", "b7", "a7",
+	       "h8", "g8", "f8", "e8", "d8", "c8", "b8", "a8"};
+std::string_view toString(int index) {
+    return algsq[index];
+}
+
+/******************************************************************************
+ * Function that converts a 'Move' to a string corresponding to algeraic
+ * notation, e.g. "e2e4" or "a7a8q".
+ */
+std::string toString(const Move& m) {
+    std::string alg = "";
+    alg += toString(m.from);
+    alg += toString(m.to);
+    if (m.promoPiece != ' ') alg += m.promoPiece;
+    return alg;
+}
+
+/******************************************************************************
+ * Overload of function for printing 'Move's to std::ostreams.
+ */
+std::ostream& operator<<(std::ostream& os, const Move& m) {
+    return os << toString(m);
 }

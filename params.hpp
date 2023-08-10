@@ -4,6 +4,15 @@
 
 typedef uint64_t bitb;
 
+// bitscan macros
+// BSF = Bit Scan Forward
+#define BSF(x) (__builtin_ffsll(x) - 1)
+// BSB = Bit Scan Backward
+#define BSB(x) (63 - __builtin_clzll(x))
+
+// population count macro
+#define POP(x) (__builtin_popcountll(x))
+
 namespace azalea {
     /**************************************************************************
      * Version section

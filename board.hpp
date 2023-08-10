@@ -1,6 +1,7 @@
 #pragma once
 
 #include "params.hpp"
+#include "move.hpp"
 
 /******************************************************************************
  * This file contains the board representation as well as some auxiliary
@@ -67,4 +68,9 @@ public:
     bool blackLong;
     int halfmoveClock;
     int epTarget;
+
+    void makeMove(const Move& m);
 };
+
+// perft function with bulk counting, no div
+unsigned long long int perft(const GameState& gs, int depth);
