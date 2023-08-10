@@ -12,5 +12,5 @@
  */
 void generateLegalMoves(const Board& b, std::vector<Move>& movelist);
 
-bitb rookAttacks(const GameState& gs, const int index);
-bitb bishopAttacks(const GameState& gs, const int index);
+bitb rookAttacks(const bitb occ, const int index);
+bitb bishopAttacks(const bitb occ, const int index);

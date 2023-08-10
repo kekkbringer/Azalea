@@ -23,8 +23,6 @@ int main(int argc, char* argv[]) {
     GameState gs
 	= fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
 
-    return 0; // TO BE DELETED
-
     /**************************************************************************
      * interactive UCI section
      *
@@ -45,6 +43,14 @@ int main(int argc, char* argv[]) {
 			    = std::stoi(command.substr(9, command.length()));
 		std::cout << "no perft implemented yet... :(\n" << std::flush;
 	    }
+	} else if (command.substr(0, 3) == "uci") {
+	    std::cout << "id name Azalea " << azalea::majorVersion << "."
+					   << azalea::minorVersion << "."
+		      			   << azalea::patchVersion << "\n";
+	    std::cout << "id author Dominik Steinmetz\n";
+	    std::cout << "uciok\n" << std::flush;
+	} else {
+	    std::cout << "Unknown command: " << command << "\n" << std::flush;
 	}
     }
 

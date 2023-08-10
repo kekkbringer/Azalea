@@ -15,14 +15,14 @@ void generateLegalMoves(const Board& b, std::vector<Move>& movelist) {
     movelist.resize(0);
 }
 
-bitb rookAttacks(const GameState& gs, const int index) {
+bitb rookAttacks(const bitb occ, const int index) {
     bitb atks = 0ULL;
     bitb atkray, blocker;
     int sq; 
 
     // north
     atkray = nRays[index];
-    blocker = atkray & gs.board.occ;
+    blocker = atkray & occ;
     if (blocker) {
 	sq = __builtin_ffsll(blocker) - 1;
 	atkray ^= nRays[sq];
@@ -31,7 +31,7 @@ bitb rookAttacks(const GameState& gs, const int index) {
 
     // east
     atkray = eRays[index];
-    blocker = atkray & gs.board.occ;
+    blocker = atkray & occ;
     if (blocker) {
 	sq = __builtin_ffsll(blocker) - 1;
 	atkray ^= eRays[sq];
@@ -40,7 +40,7 @@ bitb rookAttacks(const GameState& gs, const int index) {
 
     // south
     atkray = sRays[index];
-    blocker = atkray & gs.board.occ;
+    blocker = atkray & occ;
     if (blocker) {
 	sq = 63 - __builtin_clzll(blocker);
 	atkray ^= sRays[sq];
@@ -49,7 +49,7 @@ bitb rookAttacks(const GameState& gs, const int index) {
 
     // west
     atkray = wRays[index];
-    blocker = atkray & gs.board.occ;
+    blocker = atkray & occ;
     if (blocker) {
 	sq = 63 - __builtin_clzll(blocker);
 	atkray ^= wRays[sq];
@@ -59,14 +59,14 @@ bitb rookAttacks(const GameState& gs, const int index) {
     return atks;
 }
 
-bitb bishopAttacks(const GameState& gs, const int index) {
+bitb bishopAttacks(const bitb occ, const int index) {
     bitb atks = 0ULL;
     bitb atkray, blocker;
     int sq; 
 
     // north east
     atkray = neRays[index];
-    blocker = atkray & gs.board.occ;
+    blocker = atkray & occ;
     if (blocker) {
 	sq = __builtin_ffsll(blocker) - 1;
 	atkray ^= neRays[sq];
@@ -75,7 +75,7 @@ bitb bishopAttacks(const GameState& gs, const int index) {
 
     // north west
     atkray = nwRays[index];
-    blocker = atkray & gs.board.occ;
+    blocker = atkray & occ;
     if (blocker) {
 	sq = __builtin_ffsll(blocker) - 1;
 	atkray ^= nwRays[sq];
@@ -84,7 +84,7 @@ bitb bishopAttacks(const GameState& gs, const int index) {
 
     // south west
     atkray = swRays[index];
-    blocker = atkray & gs.board.occ;
+    blocker = atkray & occ;
     if (blocker) {
 	sq = 63 - __builtin_clzll(blocker);
 	atkray ^= swRays[sq];
@@ -93,7 +93,7 @@ bitb bishopAttacks(const GameState& gs, const int index) {
 
     // south east
     atkray = seRays[index];
-    blocker = atkray & gs.board.occ;
+    blocker = atkray & occ;
     if (blocker) {
 	sq = 63 - __builtin_clzll(blocker);
 	atkray ^= seRays[sq];
