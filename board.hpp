@@ -72,5 +72,24 @@ public:
     void makeMove(const Move& m);
 };
 
+// arrays to keep track of the different diagonals and antidiagonals
+constexpr int diags[64] = { 7,  8,  9, 10, 11, 12, 13, 14,
+			    6,  7,  8,  9, 10, 11, 12, 13,
+			    5,  6,  7,  8,  9, 10, 11, 12,
+			    4,  5,  6,  7,  8,  9, 10, 11,
+			    3,  4,  5,  6,  7,  8,  9, 10,
+			    2,  3,  4,  5,  6,  7,  8,  9,
+			    1,  2,  3,  4,  5,  6,  7,  8,
+			    0,  1,  2,  3,  4,  5,  6,  7};
+
+constexpr int antidiags[64] = { 0,  1,  2,  3,  4,  5,  6,  7,
+				1,  2,  3,  4,  5,  6,  7,  8,
+				2,  3,  4,  5,  6,  7,  8,  9,
+				3,  4,  5,  6,  7,  8,  9, 10,
+				4,  5,  6,  7,  8,  9, 10, 11,
+				5,  6,  7,  8,  9, 10, 11, 12,
+				6,  7,  8,  9, 10, 11, 12, 13,
+				7,  8,  9, 10, 11, 12, 13, 14};
+
 // perft function with bulk counting, no div
 unsigned long long int perft(const GameState& gs, int depth);

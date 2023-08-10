@@ -429,6 +429,87 @@ void generateLegalMoves(const GameState& gs, std::vector<Move>& movelist) {
 	    }
 	}
     }
+
+    // pawn captures, oh boi...
+    constexpr bitb aFile = 0x8080808080808080ULL;
+    constexpr bitb hFile = 0x101010101010101ULL;
+
+    // white pawns (captures)
+    // TODO ep capture
+    // TODO black
+    // TODO obviously testing for all kings of captures (minus epCap)
+    // TODO special case with epCap where two pawns vanish from the same rank
+    if (gs.whiteToMove) {
+	bitb ownPawns = b.whitePawns & ~pinned;
+	bitb pinnedPawns = b.whitePawns & diaPinned;
+	// capture to the left (nw, <<9) so no pawns from the a file
+	bitb leftAtks = (ownPawns & ~aFile) << 9;
+	leftAtks &= captureMask;
+	while (leftAtks) {
+	    const int to = BSF(leftAtks);
+	    leftAtks &= leftAtks - 1;
+	    if (to>55) { // promotion!
+		movelist.push_back(Move(to-9, to, true, false, false,
+						    false, true, 'n'));
+		movelist.push_back(Move(to-9, to, true, false, false,
+						    false, true, 'b'));
+		movelist.push_back(Move(to-9, to, true, false, false,
+						    false, true, 'r'));
+		movelist.push_back(Move(to-9, to, true, false, false,
+						    false, true, 'q'));
+	    } else {
+		movelist.push_back(Move(to-9, to, true, false, false,
+						    false, false, ' '));
+	    }
+	}
+	// capture to the right (ne, <<7) so no pawns from the h file
+	bitb rightAtks = (ownPawns & ~hFile) << 7;
+	rightAtks &= captureMask;
+	while (rightAtks) {
+	    const int to = BSF(rightAtks);
+	    rightAtks &= rightAtks - 1;
+	    if (to<8) { // promotion!
+		movelist.push_back(Move(to-7, to, true, false, false,
+						    false, true, 'n'));
+		movelist.push_back(Move(to-7, to, true, false, false,
+						    false, true, 'b'));
+		movelist.push_back(Move(to-7, to, true, false, false,
+						    false, true, 'r'));
+		movelist.push_back(Move(to-7, to, true, false, false,
+						    false, true, 'q'));
+	    } else {
+		movelist.push_back(Move(to-7, to, true, false, false,
+						    false, false, ' '));
+	    }
+	}
+	// now handle the pinned pawns
+	// these can never promote
+	while (pinnedPawns) {
+	    const int from = BSF(pinnedPawns);
+	    pinnedPawns &= pinnedPawns - 1;
+	    // pinned along a diagonal
+	    if (diag[from] == diag[ownKingIndex]) {
+		// here we can capture to the left, so +9
+		const int to = from + 9;
+		if ((1ULL<<to) & captureMask)
+		    movelist.push_back(Move(from, to, true, false, false,
+							false, false ' '));
+	    // pinned along a antidiagonal
+	    } else if (antidiag[from] == antidiag[ownKingIndex]) {
+		// here we can capture to the right, s0 +7
+		const int to = from + 7;
+		if ((1ULL<<to) & captureMask)
+		    movelist.push_back(Move(from, to, true, false, false,
+							false, false ' '));
+	    }
+	}
+    // black pawns (captures)
+    } else {
+
+    }
+
+    // TODO: castling...
+
 } // end of generateLegalMoves
 
 /******************************************************************************
