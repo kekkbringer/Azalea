@@ -170,11 +170,33 @@ void generateLegalMoves(const GameState& gs, std::vector<Move>& movelist) {
 bitb detectLaterallyPinnedPieces(const GameState& gs) {
     bitb pinned = 0x0ULL;
 
-    const int ownKingIndex
-		    = BSF(gs.whiteToMove ? gs.board.wKing : gs.board.bKing);
+    // reference to board
+    const Board& b = gs.board;
+
+    const int ownKingIndex = BSF(gs.whiteToMove ? b.wKing : b.bKing);
+    bitb potentialPinner = (gs.whiteToMove ? (b.bRooks | b.bQueens)
+					   : (b.wRooks | b.wQueens));
 
     // check if there can even be laterally pinned pieces
     const bitb kingOnEmptyBoard = rookAttacks(0x0ULL, ownKingIndex);
+    potentialPinner &= kingOnEmptyBoard;
+    if (potentialPinner) {
+	// where are your frens?
+	const bitb friends = (gs.whiteToMove ? b.white : b.black);
+	const bitb kingOnTrueBoard = rookAttacks(b.occ, ownKingIndex);
+	// now iterate over the potential pinner and check if there is a
+	// friendly piece they pin
+	while (potentialPinner) {
+	    const int potentialPinnerIndex = BSF(potentialPinner);
+	    potentialPinner &= potentialPinner - 1;
+	    // get its attack squares
+	    const bitb atks = rookAttacks(b.occ, potentialPinnerIndex);
+	    // Now overlap the attack square from the kings location and the
+	    // enemies location and with all friendly pieces. Whatever is left
+	    // is indeed a pinned piece! D:
+	    pinned |= kingOnTrueBoard & atks & friends;
+	}
+    }
 
     return pinned;
 }
@@ -195,7 +217,33 @@ bitb detectLaterallyPinnedPieces(const GameState& gs) {
 bitb detectDiagonallyPinnedPieces(const GameState& gs) {
     bitb pinned = 0x0ULL;
 
+    // reference to board
+    const Board& b = gs.board;
+
+    const int ownKingIndex = BSF(gs.whiteToMove ? b.wKing : b.bKing);
+    bitb potentialPinner = (gs.whiteToMove ? (b.bBishops | b.bQueens)
+					   : (b.wBishops | b.wQueens));
+
     // check if there can even be diagonally pinned pieces
+    const bitb kingOnEmptyBoard = bishopAttacks(0x0ULL, ownKingIndex);
+    potentialPinner &= kingOnEmptyBoard;
+    if (potentialPinner) {
+	// where are your frens?
+	const bitb friends = (gs.whiteToMove ? b.white : b.black);
+	const bitb kingOnTrueBoard = bishopAttacks(b.occ, ownKingIndex);
+	// now iterate over the potential pinner and check if there is a
+	// friendly piece they pin
+	while (potentialPinner) {
+	    const int potentialPinnerIndex = BSF(potentialPinner);
+	    potentialPinner &= potentialPinner - 1;
+	    // get its attack squares
+	    const bitb atks = bishopAttacks(b.occ, potentialPinnerIndex);
+	    // Now overlap the attack square from the kings location and the
+	    // enemies location and with all friendly pieces. Whatever is left
+	    // is indeed a pinned piece! D:
+	    pinned |= kingOnTrueBoard & atks & friends;
+	}
+    }
 
     return pinned;
 }
