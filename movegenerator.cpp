@@ -436,8 +436,6 @@ void generateLegalMoves(const GameState& gs, std::vector<Move>& movelist) {
     constexpr bitb hFile = 0x101010101010101ULL;
 
     // white pawns (captures)
-    // TODO ep capture
-    // TODO special case with epCap where two pawns vanish from the same rank
     if (gs.whiteToMove) {
 	bitb ownPawns = b.wPawns & ~pinned;
 	bitb pinnedPawns = b.wPawns & diaPinned;
@@ -616,6 +614,79 @@ void generateLegalMoves(const GameState& gs, std::vector<Move>& movelist) {
 	}
     }
 
+    // all en passant captures are handled here
+    if (gs.epTarget != -1) {
+	// check if the pawn in question may be captures at all...
+	// If the enemy pawn is pinned to our king diagonally we may never
+	// ep cature it. (by the definition used here it can not be laterally
+	// pinned, this is not completely true but will be handled later)
+	const bitb pawnToCaptureIndex
+			= (gs.whiteToMove ? gs.epTarget-8 : gs.epTarget+8);
+	if ((1ULL<<pawnToCaptureIndex) & diaPinned) {
+	    // cannot be captured
+	    goto noEP;
+	}
+	// if pawn is not in captureMask also done
+	if (not ((1ULL<<pawnToCaptureIndex) & captureMask)) {
+	    // cannot be captured
+	    goto noEP;
+	}
+
+	const bitb potentialPawns
+			= pawnAttacks(!gs.whiteToMove, (1ULL<<gs.epTarget));
+	bitb ownPawns = (gs.whiteToMove ? b.wPawns : b.bPawns);
+	ownPawns &= potentialPawns;
+	// diagonally pinned pawns for later
+	bitb diaPinnedPawns = ownPawns & diaPinned;
+	// laterally pinned pawns can never capture
+	ownPawns &= ~pinned;
+	while(ownPawns) {
+	    const int from = BSF(ownPawns);
+	    ownPawns &= ownPawns - 1;
+	    // rook  pawn  pawn  king arragement
+	    // test if its even possible
+	    const bitb specialRank
+	    		= (gs.whiteToMove ? 0xff00000000ULL : 0xff000000ULL);
+	    if (ownKing & specialRank) { // is my king even on the right rank?
+	        bitb potentialRooks = enemyRooklikeSlider & specialRank;
+	        if (potentialRooks) { // also a rook/queen?
+	    	   // mask with only both pawns in question
+	    	   const bitb bothPawns
+		   		= (1ULL<<pawnToCaptureIndex) | (1ULL<<from);
+	    	   while(potentialRooks) {
+	    	       const int index = BSF(potentialRooks);
+	    	       potentialRooks &= potentialRooks - 1;
+		       bitb overlap = (wRays[ownKingIndex] & eRays[index])
+					| (eRays[ownKingIndex] & wRays[index]);
+		       overlap &= b.occ;
+		       if (overlap == bothPawns) goto noEP;
+	    	   }
+	        }
+	    }
+	    movelist.push_back(Move(from, gs.epTarget, true, false, true,
+							false, false, ' '));
+	}
+	// dia pinned pawns here
+	while(diaPinnedPawns) {
+	    const int from = BSF(diaPinnedPawns);
+	    diaPinnedPawns &= diaPinnedPawns - 1;
+	    // same diagonal
+	    if (diags[from] == diags[ownKingIndex]
+		and diags[from] == diags[gs.epTarget]) {
+		     movelist.push_back(
+			     Move(from, gs.epTarget, true, false, true,
+						    false, false, ' '));
+	    // same antidiagonal
+	    } else if (antidiags[from] == antidiags[ownKingIndex]
+		    and antidiags[from] == antidiags[gs.epTarget]) {
+		     movelist.push_back(
+			     Move(from, gs.epTarget, true, false, true,
+						    false, false, ' '));
+	    }
+	}
+    }
+    noEP:
+
     ///////////////////////////////////////////////////////
     //                      castling                     //
     ///////////////////////////////////////////////////////
@@ -703,7 +774,6 @@ bitb detectLaterallyPinnedPieces(const GameState& gs) {
     potentialPinner &= kingOnEmptyBoard;
     if (potentialPinner) {
 	// where are your frens?
-	const bitb friends = (gs.whiteToMove ? b.white : b.black);
 	const bitb kingOnTrueBoard = rookAttacks(b.occ, ownKingIndex);
 	// now iterate over the potential pinner and check if there is a
 	// friendly piece they pin
@@ -715,7 +785,7 @@ bitb detectLaterallyPinnedPieces(const GameState& gs) {
 	    // Now overlap the attack square from the kings location and the
 	    // enemies location and with all friendly pieces. Whatever is left
 	    // is indeed a pinned piece! D:
-	    pinned |= kingOnTrueBoard & atks & friends;
+	    pinned |= kingOnTrueBoard & atks;
 	}
     }
 
@@ -750,7 +820,6 @@ bitb detectDiagonallyPinnedPieces(const GameState& gs) {
     potentialPinner &= kingOnEmptyBoard;
     if (potentialPinner) {
 	// where are your frens?
-	const bitb friends = (gs.whiteToMove ? b.white : b.black);
 	const bitb kingOnTrueBoard = bishopAttacks(b.occ, ownKingIndex);
 	// now iterate over the potential pinner and check if there is a
 	// friendly piece they pin
@@ -762,7 +831,7 @@ bitb detectDiagonallyPinnedPieces(const GameState& gs) {
 	    // Now overlap the attack square from the kings location and the
 	    // enemies location and with all friendly pieces. Whatever is left
 	    // is indeed a pinned piece! D:
-	    pinned |= kingOnTrueBoard & atks & friends;
+	    pinned |= kingOnTrueBoard & atks;
 	}
     }
 

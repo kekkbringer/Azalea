@@ -36,6 +36,14 @@ int main(int argc, char* argv[]) {
 	if (command == "quit") {
 	    return 0;
 
+	// legal moves
+	} else if (command == "legalmoves") {
+	    std::vector<Move> ml;
+	    generateLegalMoves(gs, ml);
+	    for (const auto& m: ml) {
+		std::cout << m << "  ";
+	    }
+	    std::cout << "\nnumber of moves: " << ml.size() << std::endl;
 	// position section
 	} else if (command.substr(0, 8) == "position") {
 	    if (command.substr(9, 8) == "startpos") {
@@ -52,8 +60,9 @@ int main(int argc, char* argv[]) {
 	    if (command.substr(3, 5) == "perft") {
 		const int depth
 			    = std::stoi(command.substr(9, command.length()));
-		const auto nPerft = perft(gs, depth);
-		std::cout << "nodes searched: " << nPerft << std::endl;
+		//const auto nPerft = perft(gs, depth);
+		//std::cout << "nodes searched: " << nPerft << std::endl;
+		perftdiv(gs, depth);
 	    }
 	} else if (command.substr(0, 3) == "uci") {
 	    std::cout << "id name Azalea " << azalea::majorVersion << "."

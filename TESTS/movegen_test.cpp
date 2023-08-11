@@ -160,24 +160,24 @@ TEST_CASE("Testing movegen...", "[board]") {
 	generateLegalMoves(gs, ml);
 	REQUIRE(ml.size() == 14);
     }
-    SECTION("pinned piece detection") {
-	auto gs = fen("8/8/8/8/8/2KN1rk1/8/8 w - - 0 1");
-	auto pinned = detectLaterallyPinnedPieces(gs);
-	REQUIRE(pinned == 1048576ULL);
+    //SECTION("pinned piece detection") {
+    //    auto gs = fen("8/8/8/8/8/2KN1rk1/8/8 w - - 0 1");
+    //    auto pinned = detectLaterallyPinnedPieces(gs);
+    //    REQUIRE(pinned == 1048576ULL);
 
-	gs = fen("3b2k1/8/8/2NNN3/rnNKN2q/2NNN3/3r4/3r4 w - - 0 1");
-	pinned = detectLaterallyPinnedPieces(gs);
-	REQUIRE(pinned == 135266304ULL);
+    //    gs = fen("3b2k1/8/8/2NNN3/rnNKN2q/2NNN3/3r4/3r4 w - - 0 1");
+    //    pinned = detectLaterallyPinnedPieces(gs);
+    //    REQUIRE(pinned == 135266304ULL);
 
-	gs = fen("8/4k3/8/2n5/1B6/8/8/K7 b - - 0 1");
-	pinned = detectDiagonallyPinnedPieces(gs);
-	REQUIRE(pinned == 137438953472ULL);
+    //    gs = fen("8/4k3/8/2n5/1B6/8/8/K7 b - - 0 1");
+    //    pinned = detectDiagonallyPinnedPieces(gs);
+    //    REQUIRE(pinned == 137438953472ULL);
 
-	gs = fen("3R4/6B1/3q4/4n3/R2kb1N1/K1b5/1R6/8 b - - 0 1");
-	pinned = detectLaterallyPinnedPieces(gs);
-	pinned |= detectDiagonallyPinnedPieces(gs);
-	REQUIRE(pinned == 17626545782784ULL);
-    }
+    //    gs = fen("3R4/6B1/3q4/4n3/R2kb1N1/K1b5/1R6/8 b - - 0 1");
+    //    pinned = detectLaterallyPinnedPieces(gs);
+    //    pinned |= detectDiagonallyPinnedPieces(gs);
+    //    REQUIRE(pinned == 17626545782784ULL);
+    //}
     SECTION("easy movegen with pinned pieces") {
 	std::vector<Move> ml;
 

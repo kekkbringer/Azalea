@@ -10,6 +10,13 @@ void GameState::makeMove(const Move& m) {
 
     Board& b = this->board;
 
+    // if en passant capture, remove pawn
+    if (m.ep) {
+	const int index = (to%8) + 8*(from/8); // looks stupid, makes sense
+	b.wPawns &= ~(1ULL << index);
+	b.bPawns &= ~(1ULL << index);
+    }
+
     // reset ep target
     this->epTarget = -1;
 
