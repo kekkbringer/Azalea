@@ -298,6 +298,53 @@ TEST_CASE("Testing movegen...", "[board]") {
 	gs = fen("8/1k1p2R1/8/8/8/8/8/2K5 b - - 0 1");
 	generateLegalMoves(gs, ml);
 	REQUIRE(ml.size() == 8);
+    }
+    SECTION("pawn captures") {
+	std::vector<Move> ml;
 
+	auto gs = fen("8/5k2/8/4b3/3P4/8/8/K7 w - - 0 1");
+	generateLegalMoves(gs, ml);
+	REQUIRE(ml.size() == 4);
+
+	gs = fen("8/5k2/8/4b3/8/8/1P6/K7 w - - 0 1");
+	generateLegalMoves(gs, ml);
+	REQUIRE(ml.size() == 2);
+
+	gs = fen("8/5k2/8/8/3r1q2/4P3/8/K7 w - - 0 1");
+	generateLegalMoves(gs, ml);
+	REQUIRE(ml.size() == 6);
+
+	gs = fen("8/5k2/8/8/3q1r2/4P3/8/K7 w - - 0 1");
+	generateLegalMoves(gs, ml);
+	REQUIRE(ml.size() == 3);
+
+	gs = fen("7K/8/8/5k2/8/3q1r2/4P3/8 w - - 0 1");
+	generateLegalMoves(gs, ml);
+	REQUIRE(ml.size() == 7);
+
+	gs = fen("k7/8/8/8/1q6/4n1b1/3PPP2/4K3 w - - 0 1");
+	generateLegalMoves(gs, ml);
+	REQUIRE(ml.size() == 1);
+
+	gs = fen("4k3/5p2/6B1/8/8/8/8/K7 b - - 0 1");
+	generateLegalMoves(gs, ml);
+	REQUIRE(ml.size() == 5);
+
+	gs = fen("4k3/3ppp2/4N1B1/1Q6/8/8/8/K7 b - - 0 1");
+	generateLegalMoves(gs, ml);
+	REQUIRE(ml.size() == 1);
+
+	// promos caps
+	gs = fen("k5b1/5P2/8/3K4/8/8/8/8 w - - 0 1");
+	generateLegalMoves(gs, ml);
+	REQUIRE(ml.size() == 12);
+
+	gs = fen("k4rb1/5P2/8/5K2/8/8/8/8 w - - 0 1");
+	generateLegalMoves(gs, ml);
+	REQUIRE(ml.size() == 8);
+
+	gs = fen("8/3K4/8/8/6k1/8/2p5/8 b - - 0 1");
+	generateLegalMoves(gs, ml);
+	REQUIRE(ml.size() == 12);
     }
 }

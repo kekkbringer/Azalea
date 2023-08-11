@@ -10,7 +10,26 @@ void GameState::makeMove(const Move& m) {
 
     Board& b = this->board;
 
-    // first zero to to-square everywhere (king not needed, cant be captured)
+    // reset ep target
+    this->epTarget = -1;
+
+    // reset castle rights if anything moves from a1, e1, h1, a8, e8, h8
+    // original rook square first
+    if (from ==  7) this->whiteLong  = false;
+    if (from ==  0) this->whiteShort = false;
+    if (from == 63) this->blackLong  = false;
+    if (from == 56) this->blackShort = false;
+    // original king squares
+    if (from ==  3) {this->whiteShort = false; this->whiteLong = false;}
+    if (from == 59) {this->blackShort = false; this->blackLong = false;}
+    
+    // also reset castle rights if anything moves to a1, h1, a8, h8
+    if (to ==  7) this->whiteLong  = false;
+    if (to ==  0) this->whiteShort = false;
+    if (to == 63) this->blackLong  = false;
+    if (to == 56) this->blackShort = false;
+
+    // first zero the to-square everywhere (king not needed, cant be captured)
     // for an ep capture another square needs to be cleared as well (later)
     b.wPawns &= ~toMask;
     b.wKnights &= ~toMask;
@@ -53,6 +72,58 @@ void GameState::makeMove(const Move& m) {
 	} else if (b.bKing & fromMask) {
 	    b.bKing = toMask;
 	}
+    }
+
+    // double pawn push -> set ep square
+    if (m.doublePawnPush) this->epTarget = (from + to)/2;
+
+    // promotions
+    if (m.promo) {
+	// we already move the pawn, now the pawn needs to be replaced with the
+	// respective piece it's promoting to (can obviously be done more
+	// efficient)
+	if (this->whiteToMove) {
+	    b.wPawns ^= toMask;
+	    switch (m.promoPiece) {
+		case 'q':
+		    b.wQueens ^= toMask;
+		    break;
+		case 'n':
+		    b.wKnights ^= toMask;
+		    break;
+		case 'b':
+		    b.wBishops ^= toMask;
+		    break;
+		case 'r':
+		    b.wRooks ^= toMask;
+		    break;
+	    }
+	} else { // black
+	    b.bPawns ^= toMask;
+	    switch (m.promoPiece) {
+		case 'q':
+		    b.bQueens ^= toMask;
+		    break;
+		case 'n':
+		    b.bKnights ^= toMask;
+		    break;
+		case 'b':
+		    b.bBishops ^= toMask;
+		    break;
+		case 'r':
+		    b.bRooks ^= toMask;
+		    break;
+	    }
+	}
+    }
+
+    // castling
+    if (m.castle) {
+	// we already moved the king, only the rook is left
+	if (to ==  1) b.wRooks ^= 0x5ULL; // white kingside
+	if (to ==  5) b.wRooks ^= 0x90ULL; // white queenside
+	if (to == 57) b.bRooks ^= 0x500000000000000ULL; // black kingside
+	if (to == 61) b.bRooks ^= 0x9000000000000000ULL; // black queenside
     }
 
     b.white = b.wPawns | b.wKnights | b.wBishops

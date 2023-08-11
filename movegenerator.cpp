@@ -280,6 +280,7 @@ void generateLegalMoves(const GameState& gs, std::vector<Move>& movelist) {
     ///////////////////////////////////////////////////////
     //                       pawns                       //
     ///////////////////////////////////////////////////////
+    // TODO: The pawn section is very shitty, should be fixed at some point...
     // pushes
     constexpr bitb rank2 = 0xff00ULL;
     constexpr bitb rank7 = 0xff000000000000ULL;
@@ -300,13 +301,13 @@ void generateLegalMoves(const GameState& gs, std::vector<Move>& movelist) {
 	    freePushes &= freePushes - 1;
 	    if (to>55) { // promotion!
 		movelist.push_back(Move(to-8, to, false, false, false,
-						    false, true, 'n'));
+						    false, true, 'q'));
 		movelist.push_back(Move(to-8, to, false, false, false,
-						    false, true, 'b'));
+						    false, true, 'n'));
 		movelist.push_back(Move(to-8, to, false, false, false,
 						    false, true, 'r'));
 		movelist.push_back(Move(to-8, to, false, false, false,
-						    false, true, 'q'));
+						    false, true, 'b'));
 
 	    } else {
 		movelist.push_back(Move(to-8, to, false, false, false,
@@ -373,13 +374,13 @@ void generateLegalMoves(const GameState& gs, std::vector<Move>& movelist) {
 	    freePushes &= freePushes - 1;
 	    if (to<8) { // promotion!
 		movelist.push_back(Move(to+8, to, false, false, false,
-						    false, true, 'n'));
+						    false, true, 'q'));
 		movelist.push_back(Move(to+8, to, false, false, false,
-						    false, true, 'b'));
+						    false, true, 'n'));
 		movelist.push_back(Move(to+8, to, false, false, false,
 						    false, true, 'r'));
 		movelist.push_back(Move(to+8, to, false, false, false,
-						    false, true, 'q'));
+						    false, true, 'b'));
 
 	    } else {
 		movelist.push_back(Move(to+8, to, false, false, false,
@@ -436,8 +437,6 @@ void generateLegalMoves(const GameState& gs, std::vector<Move>& movelist) {
 
     // white pawns (captures)
     // TODO ep capture
-    // TODO black
-    // TODO obviously testing for all kings of captures (minus epCap)
     // TODO special case with epCap where two pawns vanish from the same rank
     if (gs.whiteToMove) {
 	bitb ownPawns = b.wPawns & ~pinned;
@@ -450,13 +449,13 @@ void generateLegalMoves(const GameState& gs, std::vector<Move>& movelist) {
 	    leftAtks &= leftAtks - 1;
 	    if (to>55) { // promotion!
 		movelist.push_back(Move(to-9, to, true, false, false,
-						    false, true, 'n'));
+						    false, true, 'q'));
 		movelist.push_back(Move(to-9, to, true, false, false,
-						    false, true, 'b'));
+						    false, true, 'n'));
 		movelist.push_back(Move(to-9, to, true, false, false,
 						    false, true, 'r'));
 		movelist.push_back(Move(to-9, to, true, false, false,
-						    false, true, 'q'));
+						    false, true, 'b'));
 	    } else {
 		movelist.push_back(Move(to-9, to, true, false, false,
 						    false, false, ' '));
@@ -468,22 +467,21 @@ void generateLegalMoves(const GameState& gs, std::vector<Move>& movelist) {
 	while (rightAtks) {
 	    const int to = BSF(rightAtks);
 	    rightAtks &= rightAtks - 1;
-	    if (to<8) { // promotion!
+	    if (to>55) { // promotion!
+		movelist.push_back(Move(to-7, to, true, false, false,
+						    false, true, 'q'));
 		movelist.push_back(Move(to-7, to, true, false, false,
 						    false, true, 'n'));
 		movelist.push_back(Move(to-7, to, true, false, false,
-						    false, true, 'b'));
-		movelist.push_back(Move(to-7, to, true, false, false,
 						    false, true, 'r'));
 		movelist.push_back(Move(to-7, to, true, false, false,
-						    false, true, 'q'));
+						    false, true, 'b'));
 	    } else {
 		movelist.push_back(Move(to-7, to, true, false, false,
 						    false, false, ' '));
 	    }
 	}
 	// now handle the pinned pawns
-	// these can never promote
 	while (pinnedPawns) {
 	    const int from = BSF(pinnedPawns);
 	    pinnedPawns &= pinnedPawns - 1;
@@ -491,24 +489,191 @@ void generateLegalMoves(const GameState& gs, std::vector<Move>& movelist) {
 	    if (diags[from] == diags[ownKingIndex]) {
 		// here we can capture to the left, so +9
 		const int to = from + 9;
-		if ((1ULL<<to) & captureMask)
-		    movelist.push_back(Move(from, to, true, false, false,
+		if ((1ULL<<to) & captureMask) {
+		    if (to>55) { // promotion
+			movelist.push_back(Move(from, to, true, false, false,
+							false, true, 'q'));
+			movelist.push_back(Move(from, to, true, false, false,
+							false, true, 'n'));
+			movelist.push_back(Move(from, to, true, false, false,
+							false, true, 'r'));
+			movelist.push_back(Move(from, to, true, false, false,
+							false, true, 'b'));
+		    } else {
+			movelist.push_back(Move(from, to, true, false, false,
 							false, false, ' '));
+		    }
+		}
 	    // pinned along a antidiagonal
 	    } else if (antidiags[from] == antidiags[ownKingIndex]) {
-		// here we can capture to the right, s0 +7
+		// here we can capture to the right, so +7
 		const int to = from + 7;
-		if ((1ULL<<to) & captureMask)
-		    movelist.push_back(Move(from, to, true, false, false,
+		if ((1ULL<<to) & captureMask) {
+		    if (to>55) { // promotion
+			movelist.push_back(Move(from, to, true, false, false,
+							false, true, 'q'));
+			movelist.push_back(Move(from, to, true, false, false,
+							false, true, 'n'));
+			movelist.push_back(Move(from, to, true, false, false,
+							false, true, 'r'));
+			movelist.push_back(Move(from, to, true, false, false,
+							false, true, 'b'));
+		    } else {
+			movelist.push_back(Move(from, to, true, false, false,
 							false, false, ' '));
+		    }
+		}
 	    }
 	}
+
     // black pawns (captures)
     } else {
-
+	bitb ownPawns = b.bPawns & ~pinned;
+	bitb pinnedPawns = b.bPawns & diaPinned;
+	// capture to the left (sw, >>7) so no pawns from the a file
+	bitb leftAtks = (ownPawns & ~aFile) >> 7;
+	leftAtks &= captureMask;
+	while (leftAtks) {
+	    const int to = BSF(leftAtks);
+	    leftAtks &= leftAtks - 1;
+	    if (to<8) { // promotion!
+		movelist.push_back(Move(to+7, to, true, false, false,
+						    false, true, 'q'));
+		movelist.push_back(Move(to+7, to, true, false, false,
+						    false, true, 'n'));
+		movelist.push_back(Move(to+7, to, true, false, false,
+						    false, true, 'r'));
+		movelist.push_back(Move(to+7, to, true, false, false,
+						    false, true, 'b'));
+	    } else {
+		movelist.push_back(Move(to+7, to, true, false, false,
+						    false, false, ' '));
+	    }
+	}
+	// capture to the right (ne, >>9) so no pawns from the h file
+	bitb rightAtks = (ownPawns & ~hFile) >> 9;
+	rightAtks &= captureMask;
+	while (rightAtks) {
+	    const int to = BSF(rightAtks);
+	    rightAtks &= rightAtks - 1;
+	    if (to<8) { // promotion!
+		movelist.push_back(Move(to+9, to, true, false, false,
+						    false, true, 'q'));
+		movelist.push_back(Move(to+9, to, true, false, false,
+						    false, true, 'n'));
+		movelist.push_back(Move(to+9, to, true, false, false,
+						    false, true, 'r'));
+		movelist.push_back(Move(to+9, to, true, false, false,
+						    false, true, 'b'));
+	    } else {
+		movelist.push_back(Move(to+9, to, true, false, false,
+						    false, false, ' '));
+	    }
+	}
+	// now handle the pinned pawns
+	while (pinnedPawns) {
+	    const int from = BSF(pinnedPawns);
+	    pinnedPawns &= pinnedPawns - 1;
+	    // pinned along a diagonal
+	    if (diags[from] == diags[ownKingIndex]) {
+		// here we can capture to the right, so -9
+		const int to = from - 9;
+		if ((1ULL<<to) & captureMask) {
+		    if (to>55) { // promotion
+			movelist.push_back(Move(from, to, true, false, false,
+							false, true, 'q'));
+			movelist.push_back(Move(from, to, true, false, false,
+							false, true, 'n'));
+			movelist.push_back(Move(from, to, true, false, false,
+							false, true, 'r'));
+			movelist.push_back(Move(from, to, true, false, false,
+							false, true, 'b'));
+		    } else {
+			movelist.push_back(Move(from, to, true, false, false,
+							false, false, ' '));
+		    }
+		}
+	    // pinned along a antidiagonal
+	    } else if (antidiags[from] == antidiags[ownKingIndex]) {
+		// here we can capture to the left, so -7
+		const int to = from - 7;
+		if ((1ULL<<to) & captureMask) {
+		    if (to>55) { // promotion
+			movelist.push_back(Move(from, to, true, false, false,
+							false, true, 'q'));
+			movelist.push_back(Move(from, to, true, false, false,
+							false, true, 'n'));
+			movelist.push_back(Move(from, to, true, false, false,
+							false, true, 'r'));
+			movelist.push_back(Move(from, to, true, false, false,
+							false, true, 'b'));
+		    } else {
+			movelist.push_back(Move(from, to, true, false, false,
+							false, false, ' '));
+		    }
+		}
+	    }
+	}
     }
 
-    // TODO: castling...
+    ///////////////////////////////////////////////////////
+    //                      castling                     //
+    ///////////////////////////////////////////////////////
+    if (wtm) { // white
+	// white kingside
+	if (gs.whiteShort) {
+    	    constexpr bitb wsOccMask = 0x6ULL;
+    	    constexpr bitb wsDangerMask = 0xeULL;
+    	    // are f1 and g1 free?
+    	    const bool isFree = (wsOccMask & ~b.occ) == wsOccMask;
+    	    // are e1, f1 and g1 safe?
+	    const bool isSafe = (wsDangerMask & ~kingDanger) == wsDangerMask;
+	    // only castle if free and safe
+	    if (isFree and isSafe) 
+		movelist.push_back(Move(ownKingIndex, 1, false, false, false,
+							true, false, ' '));
+    	}
+	// white queenside
+	if (gs.whiteLong) {
+    	    constexpr bitb wlOccMask = 0x70ULL;
+    	    constexpr bitb wlDangerMask = 0x38ULL;
+    	    // are b1, c1 and d1 free?
+    	    const bool isFree = (wlOccMask & ~b.occ) == wlOccMask;
+    	    // are b1, c1, d1 and e1 safe?
+	    const bool isSafe = (wlDangerMask & ~kingDanger) == wlDangerMask;
+	    // only castle if free and safe
+	    if (isFree and isSafe) 
+		movelist.push_back(Move(ownKingIndex, 5, false, false, false,
+							true, false, ' '));
+    	}
+    } else { // black
+	// black kingside
+	if (gs.blackShort) {
+    	    constexpr bitb bsOccMask = 0x600000000000000ULL;
+    	    constexpr bitb bsDangerMask = 0xe00000000000000ULL;
+    	    // are f8 and g8 free?
+    	    const bool isFree = (bsOccMask & ~b.occ) == bsOccMask;
+    	    // are e8, f8 and g8 safe?
+	    const bool isSafe = (bsDangerMask & ~kingDanger) == bsDangerMask;
+	    // only castle if free and safe
+	    if (isFree and isSafe) 
+		movelist.push_back(Move(ownKingIndex, 57, false, false, false,
+							true, false, ' '));
+    	}
+	// black queenside
+	if (gs.blackLong) {
+    	    constexpr bitb blOccMask = 0x7000000000000000ULL;
+    	    constexpr bitb blDangerMask = 0x3800000000000000ULL;
+    	    // are b8, c8 and d8 free?
+    	    const bool isFree = (blOccMask & ~b.occ) == blOccMask;
+    	    // are c8, d8 and e8 safe?
+	    const bool isSafe = (blDangerMask & ~kingDanger) == blDangerMask;
+	    // only castle if free and safe
+	    if (isFree and isSafe) 
+		movelist.push_back(Move(ownKingIndex, 61, false, false, false,
+							true, false, ' '));
+    	}
+    }
 
 } // end of generateLegalMoves
 
