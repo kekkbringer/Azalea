@@ -1,6 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
+#include <sstream>
 
 #include "params.hpp"
 #include "statistics.hpp"
@@ -44,6 +45,12 @@ int main(int argc, char* argv[]) {
 		std::cout << m << "  ";
 	    }
 	    std::cout << "\nnumber of moves: " << ml.size() << std::endl;
+
+	// uci standard stuff
+	} else if (command == "ucinewgame") {
+	} else if (command == "isready") {
+	    std::cout << "readyok" << std::endl;
+
 	// position section
 	} else if (command.substr(0, 8) == "position") {
 	    if (command.substr(9, 8) == "startpos") {
@@ -55,6 +62,22 @@ int main(int argc, char* argv[]) {
 	    } else {
 		std::cout << "Unknown command: " << command << std::endl;
 	    }
+	    std::size_t found = command.find("moves");
+	    if (found != std::string::npos) {
+		std::string moves = command.substr(found+6);
+		std::stringstream mm(moves);
+		// now actually make these moves
+		std::string mstring;
+		while (getline(mm, mstring, ' ')) {
+		    std::vector<Move> ml;
+		    generateLegalMoves(gs, ml);
+		    for (const auto& m: ml) {
+			if (mstring == toString(m)) {
+			    gs.makeMove(m);
+			}
+		    }
+		}
+	    }
 	// go section
 	} else if (command.substr(0, 2) == "go") {
 	    if (command.substr(3, 5) == "perft") {
@@ -63,6 +86,13 @@ int main(int argc, char* argv[]) {
 		//const auto nPerft = perft(gs, depth);
 		//std::cout << "nodes searched: " << nPerft << std::endl;
 		perftdiv(gs, depth);
+	    } else if (command.substr(3, 5) == "depth") {
+		const int depth
+			    = std::stoi(command.substr(9, command.length()));
+		std::vector<Move> ml;
+		generateLegalMoves(gs, ml);
+		const int random = rand() % ml.size();
+		std::cout << "bestmove " << ml[random] << std::endl;
 	    }
 	} else if (command.substr(0, 3) == "uci") {
 	    std::cout << "id name Azalea " << azalea::majorVersion << "."
