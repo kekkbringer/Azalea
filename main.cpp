@@ -93,6 +93,12 @@ int main(int argc, char* argv[]) {
 		generateLegalMoves(gs, ml);
 		const int random = rand() % ml.size();
 		std::cout << "bestmove " << ml[random] << std::endl;
+	    } else {
+		// just make a random move
+		std::vector<Move> ml;
+		generateLegalMoves(gs, ml);
+		const int random = rand() % ml.size();
+		std::cout << "bestmove " << ml[random] << std::endl;
 	    }
 	} else if (command.substr(0, 3) == "uci") {
 	    std::cout << "id name Azalea " << azalea::majorVersion << "."
