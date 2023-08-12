@@ -34,8 +34,8 @@ namespace azalea {
     /**************************************************************************
      * Integer constants
      */
-    constexpr int MININT = std::numeric_limits<int>::min();
-    constexpr int MAXINT = std::numeric_limits<int>::max();
+    constexpr int MININT = std::numeric_limits<int>::min() + 1;
+    constexpr int MAXINT = std::numeric_limits<int>::max() - 1;
 
     /**************************************************************************
      * Move generation

@@ -2,4 +2,4 @@
 
 #include "board.hpp"
 
-int eval(const GameState& gs, int nmoves, bool inCheck);
+int eval(const GameState& gs);

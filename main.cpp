@@ -2,6 +2,7 @@
 #include <fstream>
 #include <vector>
 #include <sstream>
+#include <time.h>
 
 #include "params.hpp"
 #include "statistics.hpp"
@@ -43,11 +44,7 @@ int main(int argc, char* argv[]) {
 
 	// eval
 	} else if (command == "eval") {
-	    std::vector<Move> movelist;
-    	    bool inCheck;
-    	    generateLegalMoves(gs, movelist, inCheck);
-	    std::cout << "current eval: "
-			<< eval(gs, movelist.size(), inCheck) << std::endl;
+	    std::cout << "current eval: " << eval(gs) << std::endl;
 
 	// legal moves
 	} else if (command == "legalmoves") {
@@ -60,6 +57,8 @@ int main(int argc, char* argv[]) {
 
 	// uci standard stuff
 	} else if (command == "ucinewgame") {
+	    gs =
+	    fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
 	} else if (command == "isready") {
 	    std::cout << "readyok" << std::endl;
 
@@ -112,6 +111,7 @@ int main(int argc, char* argv[]) {
 		// just make a random move
 		std::vector<Move> ml;
 		generateLegalMoves(gs, ml, inCheck);
+		srand(time(NULL));
 		const int random = rand() % ml.size();
 		std::cout << "bestmove " << ml[random] << std::endl;
 	    }

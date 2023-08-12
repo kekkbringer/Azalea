@@ -11,16 +11,7 @@ constexpr int valBishop = 3250;
 constexpr int valRook   = 5000;
 constexpr int valQueen  = 9000;
 
-int eval(const GameState& gs, int nmoves, bool inCheck) {
-    if (nmoves == 0) {
-	if (inCheck) {
-	    std::cout << "Checkmate detected\n";
-	    return azalea::MININT;
-	}
-	std::cout << "Stalemate detected\n";
-	return 0;
-    }
-
+int eval(const GameState& gs) {
     int val = 0;
 
     const Board& b = gs.board;
