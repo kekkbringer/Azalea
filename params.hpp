@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <limits>
 
 typedef uint64_t bitb;
 
@@ -19,7 +20,7 @@ namespace azalea {
      */
     constexpr int majorVersion = 0;
     constexpr int minorVersion = 0;
-    constexpr int patchVersion = 0;
+    constexpr int patchVersion = 1;
 
     /**************************************************************************
      * Statistics section
@@ -29,6 +30,12 @@ namespace azalea {
      */
     constexpr bool statistics = true;
     constexpr auto statfile = "stats.aza";
+
+    /**************************************************************************
+     * Integer constants
+     */
+    constexpr int MININT = std::numeric_limits<int>::min();
+    constexpr int MAXINT = std::numeric_limits<int>::max();
 
     /**************************************************************************
      * Move generation

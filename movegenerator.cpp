@@ -21,7 +21,10 @@
  * 		- single check -> set special check evasion masks
  * 	- detect pinned pieces
  */
-void generateLegalMoves(const GameState& gs, std::vector<Move>& movelist) {
+void generateLegalMoves(const GameState& gs, std::vector<Move>& movelist,
+							    bool& inCheck) {
+    inCheck = false;
+
     // reset movelist
     movelist.resize(0);
 
@@ -83,6 +86,7 @@ void generateLegalMoves(const GameState& gs, std::vector<Move>& movelist) {
 
     // test if we are in check at all by looking at the king danger
     if (ownKing & kingDanger) {
+	inCheck = true;
 	// We are in check... If it's double check we can immediatly leaf the
 	// move generation, as double check only allows for non-castling king
 	// moves. If it's a single check we have the options to capture the

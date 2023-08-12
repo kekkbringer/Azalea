@@ -10,6 +10,8 @@
 #include "move.hpp"
 #include "movegenerator.hpp"
 #include "util.hpp"
+#include "eval.hpp"
+#include "search.hpp"
 
 int main(int argc, char* argv[]) {
     std::cout << "Azalea " << azalea::majorVersion << "."
@@ -24,6 +26,8 @@ int main(int argc, char* argv[]) {
     GameState gs
 	= fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
 
+    bool inCheck = false;
+
     /**************************************************************************
      * interactive UCI section
      *
@@ -37,10 +41,18 @@ int main(int argc, char* argv[]) {
 	if (command == "quit") {
 	    return 0;
 
+	// eval
+	} else if (command == "eval") {
+	    std::vector<Move> movelist;
+    	    bool inCheck;
+    	    generateLegalMoves(gs, movelist, inCheck);
+	    std::cout << "current eval: "
+			<< eval(gs, movelist.size(), inCheck) << std::endl;
+
 	// legal moves
 	} else if (command == "legalmoves") {
 	    std::vector<Move> ml;
-	    generateLegalMoves(gs, ml);
+	    generateLegalMoves(gs, ml, inCheck);
 	    for (const auto& m: ml) {
 		std::cout << m << "  ";
 	    }
@@ -70,7 +82,7 @@ int main(int argc, char* argv[]) {
 		std::string mstring;
 		while (getline(mm, mstring, ' ')) {
 		    std::vector<Move> ml;
-		    generateLegalMoves(gs, ml);
+		    generateLegalMoves(gs, ml, inCheck);
 		    for (const auto& m: ml) {
 			if (mstring == toString(m)) {
 			    gs.makeMove(m);
@@ -89,14 +101,17 @@ int main(int argc, char* argv[]) {
 	    } else if (command.substr(3, 5) == "depth") {
 		const int depth
 			    = std::stoi(command.substr(9, command.length()));
-		std::vector<Move> ml;
-		generateLegalMoves(gs, ml);
-		const int random = rand() % ml.size();
-		std::cout << "bestmove " << ml[random] << std::endl;
+		Move bestmove;
+		const int score =
+			    alphaBeta(gs, bestmove,
+				azalea::MININT, azalea::MAXINT, depth, 0);
+		std::cout << "info depth " << depth << " score cp " << score/10
+			    << std::endl;
+		std::cout << "bestmove " << bestmove << std::endl;
 	    } else {
 		// just make a random move
 		std::vector<Move> ml;
-		generateLegalMoves(gs, ml);
+		generateLegalMoves(gs, ml, inCheck);
 		const int random = rand() % ml.size();
 		std::cout << "bestmove " << ml[random] << std::endl;
 	    }

@@ -8,7 +8,8 @@
 
 void perftdiv(const GameState& gs, int depth) {
     std::vector<Move> ml;
-    generateLegalMoves(gs, ml);
+    bool inCheck;
+    generateLegalMoves(gs, ml, inCheck);
     unsigned long long int totnodes = 0;
     for (const auto& m: ml) {
 	auto dummy = gs;
@@ -24,7 +25,8 @@ unsigned long long int perft(const GameState& gs, int depth) {
     unsigned long long int nodes = 0;
 
     std::vector<Move> ml;
-    generateLegalMoves(gs, ml);
+    bool inCheck;
+    generateLegalMoves(gs, ml, inCheck);
     const int nMoves = ml.size();
 
     if (depth == 1) return (unsigned long long int)nMoves;

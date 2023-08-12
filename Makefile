@@ -14,7 +14,8 @@ CPPFLAGS ?= $(INCFLAGS) -MMD -MP -O3 -std=c++17 -flto=auto -Wall
 LDFLAGS ?= -O3 -flto=auto
 
 # object files for main executable (excluding main itself)
-OBJ_LIST := fen.o util.o statistics.o movegenerator.o makeMove.o perft.o
+OBJ_LIST := fen.o util.o statistics.o movegenerator.o makeMove.o perft.o \
+	    eval.o search.o
 
 # object files for test executable (excluding test main itself)
 TOBJ_LIST := board_test.o movegen_test.o perft_test.o
@@ -25,7 +26,7 @@ DEPS := $(OBJS:%.o=%.d) $(TOBJS:%.o=%.d) \
 	$(OBJ_DIR)/main.d $(OBJ_DIR)/TESTS/unit_tests.d
 
 
-all: $(BIN_DIR)/$(MAIN_EXEC) $(BIN_DIR)/$(TEST_EXEC)
+all: $(BIN_DIR)/$(MAIN_EXEC) #$(BIN_DIR)/$(TEST_EXEC)
 
 # main executable
 $(BIN_DIR)/$(MAIN_EXEC): $(OBJS) $(OBJ_DIR)/main.o
