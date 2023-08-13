@@ -100,13 +100,7 @@ int main(int argc, char* argv[]) {
 	    } else if (command.substr(3, 5) == "depth") {
 		const int depth
 			    = std::stoi(command.substr(9, command.length()));
-		Move bestmove;
-		const int score =
-			    alphaBeta(gs, bestmove,
-				azalea::MININT, azalea::MAXINT, depth, 0);
-		std::cout << "info depth " << depth << " score cp " << score/10
-			    << std::endl;
-		std::cout << "bestmove " << bestmove << std::endl;
+		search(gs, depth);
 	    } else {
 		// just make a random move
 		std::vector<Move> ml;
