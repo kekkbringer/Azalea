@@ -81,6 +81,9 @@ int alphaBeta(const GameState& gs, Move& bestmove,
 			    int alpha, int beta, int depth, int ply,
 			    std::vector<Move>& pvline) {
     nodes++;
+	if (nodes%2048 == 0) {
+		if (listenForStop()) return alpha;
+	}
 
     int bestscore = azalea::MININT;
     std::vector<Move> line;
@@ -94,21 +97,21 @@ int alphaBeta(const GameState& gs, Move& bestmove,
 
     if (movelist.size() == 0) {
         if (inCheck) return azalea::MININT + 100 + ply;
-	return 0;
+		return 0;
     }
 
     // TODO quiescence search
     if (depth <= 0) {
-	pvline.resize(0);
-	return qsearch(gs, alpha, beta);
+		pvline.resize(0);
+		return qsearch(gs, alpha, beta);
     }
 
     // iterate over legal moves
     for (const auto& m: movelist) {
-	auto dummy = gs;
-	dummy.makeMove(m);
+		auto dummy = gs;
+		dummy.makeMove(m);
 
-	int score = -alphaBeta(dummy, bestmove, -beta, -alpha,
+		int score = -alphaBeta(dummy, bestmove, -beta, -alpha,
 				depth - 1, ply + 1, line);
 
 	if (score > bestscore) {

@@ -38,6 +38,11 @@ namespace azalea {
     constexpr int MAXINT = std::numeric_limits<int>::max() - 1;
 
     /**************************************************************************
+     * Search parameter
+    */
+    constexpr int maxDepth = 100;
+
+    /**************************************************************************
      * Move generation
      *
      * maxMoves - maximum number of moves possible

@@ -34,3 +34,6 @@
 # object and binary directories
 obj/
 bin/
+
+# azalea output files
+*.aza

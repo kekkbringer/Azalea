@@ -31,3 +31,8 @@ std::ostream& operator<<(std::ostream& os, const Move& m);
  * in algebraic notation, e.g. "e4"
  */
 std::string_view toString(int index);
+
+/******************************************************************************
+ * listen to std::cin, if 'stop' was given its returns true.
+*/
+bool listenForStop();

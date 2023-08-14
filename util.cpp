@@ -51,3 +51,13 @@ std::string toString(const Move& m) {
 std::ostream& operator<<(std::ostream& os, const Move& m) {
     return os << toString(m);
 }
+
+/******************************************************************************
+ * listen to std::cin, if 'stop' was given its returns true.
+*/
+bool listenForStop() {
+    std::string command;
+    std::getline(std::cin, command);
+    if (command == "stop") return true;
+    return false;
+}

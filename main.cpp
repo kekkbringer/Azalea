@@ -71,43 +71,44 @@ int main(int argc, char* argv[]) {
 		gs = fen(command.substr(13));
 		//gs = fen(command.substr(13).c_str());
 	    } else {
-		std::cout << "Unknown command: " << command << std::endl;
+			std::cout << "Unknown command: " << command << std::endl;
 	    }
 	    std::size_t found = command.find("moves");
 	    if (found != std::string::npos) {
-		std::string moves = command.substr(found+6);
-		std::stringstream mm(moves);
-		// now actually make these moves
-		std::string mstring;
-		while (getline(mm, mstring, ' ')) {
-		    std::vector<Move> ml;
-		    generateLegalMoves(gs, ml, inCheck);
-		    for (const auto& m: ml) {
-			if (mstring == toString(m)) {
-			    gs.makeMove(m);
+			std::string moves = command.substr(found+6);
+			std::stringstream mm(moves);
+			// now actually make these moves
+			std::string mstring;
+			while (getline(mm, mstring, ' ')) {
+		    	std::vector<Move> ml;
+		    	generateLegalMoves(gs, ml, inCheck);
+		    	for (const auto& m: ml) {
+					if (mstring == toString(m)) {
+			    		gs.makeMove(m);
+					}
+		    	}
 			}
-		    }
-		}
 	    }
+
 	// go section
 	} else if (command.substr(0, 2) == "go") {
 	    if (command.substr(3, 5) == "perft") {
-		const int depth
+			const int depth
 			    = std::stoi(command.substr(9, command.length()));
-		//const auto nPerft = perft(gs, depth);
-		//std::cout << "nodes searched: " << nPerft << std::endl;
-		perftdiv(gs, depth);
+			perftdiv(gs, depth);
 	    } else if (command.substr(3, 5) == "depth") {
-		const int depth
+			const int depth
 			    = std::stoi(command.substr(9, command.length()));
-		search(gs, depth);
+			search(gs, depth);
+	    } else if (command.substr(3, 9) == "infinite") {
+			search(gs, azalea::maxDepth);
 	    } else {
-		// just make a random move
-		std::vector<Move> ml;
-		generateLegalMoves(gs, ml, inCheck);
-		srand(time(NULL));
-		const int random = rand() % ml.size();
-		std::cout << "bestmove " << ml[random] << std::endl;
+			// just make a random move
+			std::vector<Move> ml;
+			generateLegalMoves(gs, ml, inCheck);
+			srand(time(NULL));
+			const int random = rand() % ml.size();
+			std::cout << "bestmove " << ml[random] << std::endl;
 	    }
 	} else if (command.substr(0, 3) == "uci") {
 	    std::cout << "id name Azalea " << azalea::majorVersion << "."

@@ -10,7 +10,8 @@ CXX = g++
 
 INCFLAGS ?= -I.
 
-CPPFLAGS ?= $(INCFLAGS) -MMD -MP -O3 -std=c++17 -flto=auto -Wall
+CPPFLAGS ?= $(INCFLAGS) -MMD -MP -O3 -std=c++17 -flto=auto -Wall \
+			-march=native
 LDFLAGS ?= -O3 -flto=auto
 
 # object files for main executable (excluding main itself)
