@@ -16,7 +16,7 @@ LDFLAGS ?= -O3 -flto=auto
 
 # object files for main executable (excluding main itself)
 OBJ_LIST := fen.o util.o statistics.o movegenerator.o makeMove.o perft.o \
-	    eval.o search.o qsearch.o
+	    eval.o search.o qsearch.o testcases.o
 
 # object files for test executable (excluding test main itself)
 TOBJ_LIST := board_test.o movegen_test.o perft_test.o

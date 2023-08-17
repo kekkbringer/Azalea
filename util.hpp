@@ -36,3 +36,9 @@ std::string_view toString(int index);
  * listen to std::cin, if 'stop' was given its returns true.
 */
 bool listenForStop();
+
+/******************************************************************************
+ * Function that runs unit tests, meant for movegen and search, testing and
+ * benchmarking.
+*/
+void runTests();

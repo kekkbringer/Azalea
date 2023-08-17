@@ -1,14 +1,10 @@
-#include <catch2/catch.hpp>
-
-#define CATCH_CONFIG_NOSTDOUT
-
+#include <iostream>
 #include <vector>
-#include <string>
 
-#include "board.hpp"
-#include "movegenerator.hpp"
-#include "fen.hpp"
 #include "util.hpp"
+#include "board.hpp"
+#include "fen.hpp"
+#include "movegenerator.hpp"
 
 struct sperft {
     std::string fenstring;
@@ -46,15 +42,30 @@ std::vector<sperft> perft1 = {
 	    {18, 111, 2048, 13078, 247686, 1635283}},
 };
 
-TEST_CASE("Testing perft...", "[perft]") {
+void runTests() {
+    int passed = 0;
+    int failed = 0;
+
+    std::cout << " :: Running movegen tests...\n";
     for (const auto& pos: perft1) {
-	SECTION ("fen " + pos.fenstring) {
+        std::cout << "testing fen " << pos.fenstring << "..." << std::endl;
 	    GameState gs = fen (pos.fenstring);
 	    int depth = 1;
 	    for (const auto& res: pos.perftResults) {
-		REQUIRE(res == perft(gs, depth));
-		depth++;
+            std::cout << "   depth " << depth << "... " << std::flush;
+            if (res == perft(gs, depth)) {
+                std::cout << "passed" << std::endl;
+                passed++;
+            } else {
+                std::cout << "failed" << std::endl;
+                failed++;
+            }
+	        depth++;
 	    }
-	}
     }
+
+    std::cout << "\ndone with all tests...\n";
+    std::cout << "total passed: " << passed << "\n";
+    std::cout << "total failed: " << failed << std::endl;
+    return;
 }

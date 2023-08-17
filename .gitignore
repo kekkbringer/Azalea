@@ -37,3 +37,6 @@ bin/
 
 # azalea output files
 *.aza
+
+# codespace files
+.vscode
