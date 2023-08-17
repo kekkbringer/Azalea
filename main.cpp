@@ -14,10 +14,26 @@
 #include "eval.hpp"
 #include "search.hpp"
 
-int main(int argc, char* argv[]) {
+int main(int argc, char* argv[]) {    if (argc > 1) {
+	if (std::string(argv[1]) == "-v"
+				    or std::string(argv[1]) == "--version") {
+	    std::cout << "Azalea " << azalea::majorVersion << "."
+				    << azalea::minorVersion << "."
+				    << azalea::patchVersion << "\n"
+			<< "by Dominik Steinmetz\n";
+	    return 0;
+	} else if (std::string(argv[1]) == "-t"
+					or std::string(argv[1]) == "--test") {
+	    std::cout << "Running Azalea tests..." << std::endl;
+
+	    return 0;
+	}
+    }
+
     std::cout << "Azalea " << azalea::majorVersion << "."
 		      << azalea::minorVersion << "."
 		      << azalea::patchVersion << " <3\n";
+
 
     // delete old statfile in case of restart
     if constexpr (azalea::statistics) deleteStatfile();

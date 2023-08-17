@@ -23,8 +23,7 @@ int nodes;
 void search(const GameState& gs, const int depth) {
     using namespace std::chrono;
 
-    Move bestmove;
-    std::vector<Move> pvline;
+    std::vector<Move> pvline, oldpv;
 
     // "dumb" iterative deepening
     for (int idDepth=1; idDepth<=depth; idDepth++) {
@@ -33,8 +32,9 @@ void search(const GameState& gs, const int depth) {
 	nodes = 0;
 	// call to core search routine
 	pvline.clear();
-    	const int score = alphaBeta(gs, bestmove, azalea::MININT, azalea::MAXINT,
-    	    						idDepth, 0, pvline);
+    	const int score = alphaBeta(gs, azalea::MININT, azalea::MAXINT,
+    	    			    idDepth, 0, pvline, oldpv);
+	oldpv = pvline;
 
 	const auto end = high_resolution_clock::now();
 	const auto duration = duration_cast<milliseconds>(end-start);
@@ -43,7 +43,9 @@ void search(const GameState& gs, const int depth) {
     	std::cout << "info depth " << idDepth << " score cp " << score/10;
 
 	// print number of nodes searched and total time of the iteration
-	std::cout << " nodes " << nodes << " time " << duration.count();
+	const int ms = 1 + duration.count(); // millisecs, rounded up
+	std::cout << " nodes " << nodes << " time " << ms;
+	std::cout << " nps " << (nodes*1000)/ms;
 
 	// print principle variation
 	std::cout << " pv ";
@@ -52,38 +54,36 @@ void search(const GameState& gs, const int depth) {
     }
 
     // print final bestmove
-    std::cout << "bestmove " << bestmove << std::endl;
+    std::cout << "bestmove " << pvline[0] << std::endl;
 }
 
 /******************************************************************************
  * Benchmark function, calls alphaBeta outside of an ID framework
  */
 void searchNOID(const GameState& gs, const int depth) {
-    Move bestmove;
-    std::vector<Move> pvline;
+    std::vector<Move> pvline, oldpv;
 
     // call to core search routine
-    const int score = alphaBeta(gs, bestmove, azalea::MININT, azalea::MAXINT,
-        						depth, 0, pvline);
+    const int score = alphaBeta(gs, azalea::MININT, azalea::MAXINT,
+        			depth, 0, pvline, oldpv);
 
     // print final search info
     std::cout << "info depth " << depth << " score cp " << score/10 << " pv ";
     for (const auto& m: pvline) std::cout << m << " ";
     std::cout << std::endl;
-    std::cout << "bestmove " << bestmove << std::endl;
+    std::cout << "bestmove " << pvline[0] << std::endl;
 }  
 
 
 /******************************************************************************
  * Fail-soft alpha beta
  */
-int alphaBeta(const GameState& gs, Move& bestmove,
-			    int alpha, int beta, int depth, int ply,
-			    std::vector<Move>& pvline) {
+int alphaBeta(const GameState& gs, int alpha, int beta, int depth, int ply,
+		std::vector<Move>& pvline, const std::vector<Move>& oldpv) {
     nodes++;
-	if (nodes%2048 == 0) {
-		if (listenForStop()) return alpha;
-	}
+    //if (nodes%2048 == 0) {
+    //    if (listenForStop()) return alpha;
+    //}
 
     int bestscore = azalea::MININT;
     std::vector<Move> line;
@@ -100,23 +100,39 @@ int alphaBeta(const GameState& gs, Move& bestmove,
 		return 0;
     }
 
-    // TODO quiescence search
+    // enter quiescence search
     if (depth <= 0) {
 		pvline.resize(0);
 		return qsearch(gs, alpha, beta);
     }
 
+    // firstly, try oldpv move if available
+    if (oldpv.size() > ply) {
+	auto dummy = gs;
+	dummy.makeMove(oldpv[ply]);
+	int score = -alphaBeta(dummy, -beta, -alpha, depth-1, ply+1,
+								line, oldpv);
+	bestscore = score;
+	if (score > beta) return bestscore;
+	if (score > alpha) {
+	    alpha = score;
+	    pvline.clear();
+	    pvline.push_back(oldpv[ply]);
+	    copy(line.begin(), line.end(), back_inserter(pvline));
+	}
+	line.clear();
+    }
+
     // iterate over legal moves
     for (const auto& m: movelist) {
-		auto dummy = gs;
-		dummy.makeMove(m);
+	auto dummy = gs;
+	dummy.makeMove(m);
 
-		int score = -alphaBeta(dummy, bestmove, -beta, -alpha,
-				depth - 1, ply + 1, line);
+	int score = -alphaBeta(dummy, -beta, -alpha,
+				depth - 1, ply + 1, line, oldpv);
 
 	if (score > bestscore) {
 	    bestscore = score;
-	    if (ply == 0) bestmove = m;
 	}
 
 	// beta cutoff

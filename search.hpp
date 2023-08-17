@@ -14,9 +14,8 @@ void search(const GameState& gs, const int depth);
 /******************************************************************************
  * Fail-soft alpha beta
  */
-int alphaBeta(const GameState& gs, Move& bestmove,
-		    int alpha, int beta, int depth, int ply,
-		    std::vector<Move>& pvline);
+int alphaBeta(const GameState& gs, int alpha, int beta, int depth, int ply,
+		    std::vector<Move>& pvline, const std::vector<Move>& oldpv);
 
 /******************************************************************************
  * Quiescence search
