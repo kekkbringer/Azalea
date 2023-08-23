@@ -106,22 +106,23 @@ int alphaBeta(const GameState& gs, int alpha, int beta, int depth, int ply,
 		return qsearch(gs, alpha, beta);
     }
 
-    // firstly, try oldpv move if available
-    if (oldpv.size() > ply) {
-	auto dummy = gs;
-	dummy.makeMove(oldpv[ply]);
-	int score = -alphaBeta(dummy, -beta, -alpha, depth-1, ply+1,
-								line, oldpv);
-	bestscore = score;
-	if (score > beta) return bestscore;
-	if (score > alpha) {
-	    alpha = score;
-	    pvline.clear();
-	    pvline.push_back(oldpv[ply]);
-	    copy(line.begin(), line.end(), back_inserter(pvline));
-	}
-	line.clear();
-    }
+    //// firstly, try oldpv move if available
+    //if (ply==0) {
+    //    auto dummy = gs;
+    //    for (auto m: oldpv) dummy.makeMove(m);
+    //    // TODO: second '1' in next line is 'wrong'
+    //    int score = -alphaBeta(dummy, -beta, -alpha, 1, 1,
+    //    							line, oldpv);
+    //    bestscore = score;
+    //    if (score > beta) return bestscore;
+    //    if (score > alpha) {
+    //        alpha = score;
+    //        pvline.clear();
+    //        for (auto m: oldpv) pvline.push_back(m);
+    //        //pvline.push_back(line[0]);
+    //    }
+    //    line.clear();
+    //}
 
     // iterate over legal moves
     for (const auto& m: movelist) {

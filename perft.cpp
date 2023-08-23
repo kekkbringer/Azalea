@@ -5,12 +5,15 @@
 
 #include <vector>
 #include <iostream>
+#include <chrono>
 
 void perftdiv(const GameState& gs, int depth) {
+    const auto start = std::chrono::high_resolution_clock::now();
     std::vector<Move> ml;
     bool inCheck;
     generateLegalMoves(gs, ml, inCheck);
     unsigned long long int totnodes = 0;
+#pragma omp parallel for
     for (const auto& m: ml) {
 	auto dummy = gs;
 	dummy.makeMove(m);
@@ -18,7 +21,11 @@ void perftdiv(const GameState& gs, int depth) {
 	std::cout << "  " << m << ": " << nodes << std::endl;
 	totnodes += nodes;
     }
+    const auto end = std::chrono::high_resolution_clock::now();
+    const auto duration
+	    = std::chrono::duration_cast<std::chrono::milliseconds>(end-start);
     std::cout << "total nodes: " << totnodes << "\n";
+    std::cout << "total time:  " << duration.count()/1000 << " s\n";
 }
 
 unsigned long long int perft(const GameState& gs, int depth) {

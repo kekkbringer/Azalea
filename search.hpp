@@ -10,6 +10,7 @@
  * Main search function, calls alphaBeta
  */
 void search(const GameState& gs, const int depth);
+void searchNOID(const GameState& gs, const int depth);
 
 /******************************************************************************
  * Fail-soft alpha beta
