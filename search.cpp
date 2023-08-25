@@ -14,7 +14,7 @@
 #include "util.hpp" // TODO delete
 
 
-int nodes;
+unsigned long long int nodes;
 
 
 /******************************************************************************
@@ -25,6 +25,9 @@ void search(const GameState& gs, const int depth) {
 
     std::vector<Move> pvline, oldpv;
 
+    int alpha = azalea::MININT;
+    int beta  = azalea::MAXINT;
+
     // "dumb" iterative deepening
     for (int idDepth=1; idDepth<=depth; idDepth++) {
 	const auto start = high_resolution_clock::now();
@@ -32,9 +35,28 @@ void search(const GameState& gs, const int depth) {
 	nodes = 0;
 	// call to core search routine
 	pvline.clear();
-    	const int score = alphaBeta(gs, azalea::MININT, azalea::MAXINT,
+    	const int score = alphaBeta(gs, alpha, beta,
     	    			    idDepth, 0, pvline, oldpv);
 	oldpv = pvline;
+
+	/**************************************************
+	 *             aspiration windows                 *
+	 *************************************************/
+	if (score <= alpha) { // fail low
+	    // score is outside of window -> research with full window
+	    alpha = azalea::MININT;
+	    idDepth--;
+	    continue;
+	}
+	if (score >= beta) { // fail high
+	    // score is outside of window -> research with full window
+	    beta  = azalea::MAXINT;
+	    idDepth--;
+	    continue;
+	}
+	// set window for next depth
+	alpha = score - azalea::aspirationWindowSize;
+	beta  = score + azalea::aspirationWindowSize;
 
 	const auto end = high_resolution_clock::now();
 	const auto duration = duration_cast<milliseconds>(end-start);

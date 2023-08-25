@@ -20,7 +20,7 @@ namespace azalea {
      */
     constexpr int majorVersion = 0;
     constexpr int minorVersion = 0;
-    constexpr int patchVersion = 3;
+    constexpr int patchVersion = 4;
 
     /**************************************************************************
      * Statistics section
@@ -41,6 +41,7 @@ namespace azalea {
      * Search parameter
     */
     constexpr int maxDepth = 100;
+    constexpr int aspirationWindowSize = 400; // in millipawns
 
     /**************************************************************************
      * Move generation
