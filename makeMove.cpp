@@ -16,6 +16,7 @@ UnmakeInfo GameState::makeMove(const Move& m) {
     umi.to = to;
     umi.capturedPiece = pieceType::none;
     umi.promotion = m.promo;
+    umi.castle = m.castle;
     umi.epTarget = this->epTarget;
     umi.whiteShort = this->whiteShort;
     umi.whiteLong = this->whiteLong;

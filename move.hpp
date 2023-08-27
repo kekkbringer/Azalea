@@ -39,6 +39,7 @@ public:
     int from;
     int to;
     pieceType capturedPiece;
+    bool castle;
     bool promotion;
     int epTarget;
     bool whiteShort;
