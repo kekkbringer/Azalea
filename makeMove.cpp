@@ -2,13 +2,39 @@
 #include "board.hpp"
 #include "move.hpp"
 
-void GameState::makeMove(const Move& m) {
+UnmakeInfo GameState::makeMove(const Move& m) {
     const int from = m.from;
     const int to = m.to;
     const bitb fromMask = (1ULL << from);
     const bitb toMask = (1ULL << to);
 
     Board& b = this->board;
+
+    // prepare info to unmake move
+    UnmakeInfo umi;
+    umi.from = from;
+    umi.to = to;
+    umi.capturedPiece = pieceType::none;
+    umi.promotion = m.promo;
+    umi.epTarget = this->epTarget;
+    umi.whiteShort = this->whiteShort;
+    umi.whiteLong = this->whiteLong;
+    umi.blackShort = this->blackShort;
+    umi.blackLong = this->blackLong;
+
+    if (m.capture) {
+	if (toMask & (b.wPawns | b.bPawns)) {
+	    umi.capturedPiece = pieceType::pawn;
+	} else if (toMask & (b.wKnights | b.bKnights)) {
+	    umi.capturedPiece = pieceType::knight;
+	} else if (toMask & (b.wBishops | b.bBishops)) {
+	    umi.capturedPiece = pieceType::bishop;
+	} else if (toMask & (b.wRooks | b.bRooks)) {
+	    umi.capturedPiece = pieceType::rook;
+	} else if (toMask & (b.wQueens | b.bQueens)) {
+	    umi.capturedPiece = pieceType::queen;
+	}
+    }
 
     // if en passant capture, remove pawn
     if (m.ep) {
@@ -141,4 +167,6 @@ void GameState::makeMove(const Move& m) {
 
     // switch color of course
     this->whiteToMove = !this->whiteToMove;
+
+    return umi;
 }

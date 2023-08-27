@@ -20,7 +20,7 @@ namespace azalea {
      */
     constexpr int majorVersion = 0;
     constexpr int minorVersion = 0;
-    constexpr int patchVersion = 4;
+    constexpr int patchVersion = 5;
 
     /**************************************************************************
      * Statistics section

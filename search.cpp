@@ -42,13 +42,13 @@ void search(const GameState& gs, const int depth) {
 	/**************************************************
 	 *             aspiration windows                 *
 	 *************************************************/
-	if (score <= alpha) { // fail low
+	if (score <= alpha) { // fail low, lower alpha
 	    // score is outside of window -> research with full window
 	    alpha = azalea::MININT;
 	    idDepth--;
 	    continue;
 	}
-	if (score >= beta) { // fail high
+	if (score >= beta) { // fail high, raise beta
 	    // score is outside of window -> research with full window
 	    beta  = azalea::MAXINT;
 	    idDepth--;

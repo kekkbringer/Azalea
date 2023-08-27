@@ -49,9 +49,9 @@ void runTests() {
     std::cout << " :: Running movegen tests...\n";
     for (const auto& pos: perft1) {
         std::cout << "testing fen " << pos.fenstring << "..." << std::endl;
-	    GameState gs = fen (pos.fenstring);
-	    int depth = 1;
-	    for (const auto& res: pos.perftResults) {
+	GameState gs = fen (pos.fenstring);
+	int depth = 1;
+	for (const auto& res: pos.perftResults) {
             std::cout << "   depth " << depth << "... " << std::flush;
             if (res == perft(gs, depth)) {
                 std::cout << "passed" << std::endl;
@@ -60,8 +60,8 @@ void runTests() {
                 std::cout << "failed" << std::endl;
                 failed++;
             }
-	        depth++;
-	    }
+	    depth++;
+	}
     }
 
     std::cout << "\ndone with all tests...\n";

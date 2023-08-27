@@ -28,7 +28,7 @@ void perftdiv(const GameState& gs, int depth) {
     std::cout << "total time:  " << duration.count()/1000 << " s\n";
 }
 
-unsigned long long int perft(const GameState& gs, int depth) {
+unsigned long long int perft(GameState& gs, int depth) {
     unsigned long long int nodes = 0;
 
     std::vector<Move> ml;
@@ -39,9 +39,12 @@ unsigned long long int perft(const GameState& gs, int depth) {
     if (depth == 1) return (unsigned long long int)nMoves;
 
     for (const auto& m: ml) {
-	auto dummy = gs;
-	dummy.makeMove(m);
-	nodes += perft(dummy, depth-1);
+	//auto dummy = gs;
+	//dummy.makeMove(m);
+	//nodes += perft(dummy, depth-1);
+	const auto umi = gs.makeMove(m);
+	nodes += perft(gs, depth-1);
+	gs.unmakeMove(umi);
     }
 
     return nodes;

@@ -27,3 +27,22 @@ public:
 	: from(f), to(t), capture(c), doublePawnPush(d), ep(e),
 		castle(cas), promo(p), promoPiece(pp) {}
 };
+
+// auxillary enum
+enum class pieceType { none, pawn, knight, bishop, rook, queen };
+
+/******************************************************************************
+ * Contains information to unmake a move.
+ */
+class UnmakeInfo {
+public:
+    int from;
+    int to;
+    pieceType capturedPiece;
+    bool promotion;
+    int epTarget;
+    bool whiteShort;
+    bool whiteLong;
+    bool blackShort;
+    bool blackLong;
+};
