@@ -41,6 +41,7 @@ public:
     pieceType capturedPiece;
     bool castle;
     bool promotion;
+    bool ep;
     int epTarget;
     bool whiteShort;
     bool whiteLong;

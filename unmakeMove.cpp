@@ -1,6 +1,8 @@
 #include "board.hpp"
 #include "move.hpp"
 
+#include <iostream>
+
 void GameState::unmakeMove(UnmakeInfo umi) {
     const int from = umi.from;
     const int to = umi.to;
@@ -27,6 +29,8 @@ void GameState::unmakeMove(UnmakeInfo umi) {
 	    b.bRooks ^= (fromMask | toMask);
 	} else if (b.bQueens & toMask) {
 	    b.bQueens ^= (fromMask | toMask);
+	} else if (b.bKing & toMask) {
+	    b.bKing = fromMask;
 	}
     } else {
 	if (b.wPawns & toMask) {
@@ -39,11 +43,13 @@ void GameState::unmakeMove(UnmakeInfo umi) {
 	    b.wRooks ^= (fromMask | toMask);
 	} else if (b.wQueens & toMask) {
 	    b.wQueens ^= (fromMask | toMask);
+	} else if (b.wKing & toMask) {
+	    b.wKing = fromMask;
 	}
     }
 
-    // if capture reset the captured piece
-    if (umi.capturedPiece != pieceType::none) {
+    // if capture reset the captured piece (non-en-passant caps only)
+    if (umi.capturedPiece != pieceType::none and !umi.ep) {
 	if (this->whiteToMove) {
 	    if (umi.capturedPiece==pieceType::pawn) b.wPawns|=toMask;
 	    else if (umi.capturedPiece==pieceType::knight) b.wKnights|=toMask;
@@ -59,7 +65,14 @@ void GameState::unmakeMove(UnmakeInfo umi) {
 	}
     }
 
-    // TODO promo
+    // undo en passant capture
+    if (umi.ep) {
+	const int index = (to%8) + 8*(from/8); // looks stupid, makes sense
+	if (this->whiteToMove) { b.wPawns |= (1ULL << index);
+	} else { b.bPawns |= (1ULL << index); }
+    }
+
+    // promo
     // the piece already moved back but needs to be swapped out for a pawn
     if (umi.promotion) {
 	if (this->whiteToMove) {
@@ -77,7 +90,14 @@ void GameState::unmakeMove(UnmakeInfo umi) {
 	}
     }
     
-    // TODO castle komplett (UnmakeInfo muss noch ein flag bekommen, sonst wirds hart)
+    // castle
+    if (umi.castle) {
+	// we already moved the king, only the rook is left
+	if (to ==  1) b.wRooks ^= 0x5ULL; // white kingside
+	if (to ==  5) b.wRooks ^= 0x90ULL; // white queenside
+	if (to == 57) b.bRooks ^= 0x500000000000000ULL; // black kingside
+	if (to == 61) b.bRooks ^= 0x9000000000000000ULL; // black queenside
+    }
 
     b.white = b.wPawns | b.wKnights | b.wBishops
 	    | b.wRooks | b.wQueens | b.wKing;

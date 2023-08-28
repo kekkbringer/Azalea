@@ -46,6 +46,9 @@ void runTests() {
     int passed = 0;
     int failed = 0;
 
+    /******************************************************
+     *                       movegen                      *
+     *****************************************************/
     std::cout << " :: Running movegen tests...\n";
     for (const auto& pos: perft1) {
         std::cout << "testing fen " << pos.fenstring << "..." << std::endl;
@@ -67,5 +70,43 @@ void runTests() {
     std::cout << "\ndone with all tests...\n";
     std::cout << "total passed: " << passed << "\n";
     std::cout << "total failed: " << failed << std::endl;
+    std::cout << "\n\n\n";
+
+
+    /******************************************************
+    *                     unmake move                     *
+    ******************************************************/
+    int passedMakeUnmake = 0;
+    int failedMakeUnmake = 0;
+    std::cout << " :: testing make/unmake move engine...\n" << std::flush;
+    GameState gs = fen("4k3/8/8/8/8/8/8/4K3 w - - 0 1");
+    auto gscopy = gs;
+    std::vector<Move> ml; bool inCheck;
+    generateLegalMoves(gscopy, ml, inCheck);
+    for (const auto& m: ml) {
+	const auto umi = gscopy.makeMove(m);
+	gscopy.unmakeMove(umi);
+	if (gscopy.board.wPawns == gs.board.wPawns) passedMakeUnmake++;
+	else {std::cout << "   wPawns failed!\n"; failedMakeUnmake++;}
+	if (gscopy.board.bPawns == gs.board.bPawns) passedMakeUnmake++;
+	else {std::cout << "   bPawns failed!\n"; failedMakeUnmake++;}
+	if (gscopy.board.wKnights == gs.board.wKnights) passedMakeUnmake++;
+	else {std::cout << "   wKnights failed!\n"; failedMakeUnmake++;}
+	if (gscopy.board.bKnights == gs.board.bKnights) passedMakeUnmake++;
+	else {std::cout << "   bKnights failed!\n"; failedMakeUnmake++;}
+	if (gscopy.board.wBishops == gs.board.wBishops) passedMakeUnmake++;
+	else {std::cout << "   wBishops failed!\n"; failedMakeUnmake++;}
+	if (gscopy.board.bBishops == gs.board.bBishops) passedMakeUnmake++;
+	else {std::cout << "   bBishops failed!\n"; failedMakeUnmake++;}
+	if (gscopy.board.wRooks == gs.board.wRooks) passedMakeUnmake++;
+	else {std::cout << "   wRooks failed!\n"; failedMakeUnmake++;}
+	if (gscopy.board.bRooks == gs.board.bRooks) passedMakeUnmake++;
+	else {std::cout << "   bRooks failed!\n"; failedMakeUnmake++;}
+    }
+
+    std::cout << "\ndone with make unmake tests...\n";
+    std::cout << "passed: " << passedMakeUnmake << "\n";
+    std::cout << "failed: " << failedMakeUnmake << std::endl;
+
     return;
 }

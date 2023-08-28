@@ -20,7 +20,7 @@ unsigned long long int nodes;
 /******************************************************************************
  * Main iterative deepening search function, calls alphaBeta
  */
-void search(const GameState& gs, const int depth) {
+void search(GameState& gs, const int depth) {
     using namespace std::chrono;
 
     std::vector<Move> pvline, oldpv;
@@ -82,7 +82,7 @@ void search(const GameState& gs, const int depth) {
 /******************************************************************************
  * Benchmark function, calls alphaBeta outside of an ID framework
  */
-void searchNOID(const GameState& gs, const int depth) {
+void searchNOID(GameState& gs, const int depth) {
     std::vector<Move> pvline, oldpv;
 
     // call to core search routine
@@ -100,7 +100,7 @@ void searchNOID(const GameState& gs, const int depth) {
 /******************************************************************************
  * Fail-soft alpha beta
  */
-int alphaBeta(const GameState& gs, int alpha, int beta, int depth, int ply,
+int alphaBeta(GameState& gs, int alpha, int beta, int depth, int ply,
 		std::vector<Move>& pvline, const std::vector<Move>& oldpv) {
     nodes++;
     //if (nodes%2048 == 0) {
@@ -148,11 +148,10 @@ int alphaBeta(const GameState& gs, int alpha, int beta, int depth, int ply,
 
     // iterate over legal moves
     for (const auto& m: movelist) {
-	auto dummy = gs;
-	dummy.makeMove(m);
-
-	int score = -alphaBeta(dummy, -beta, -alpha,
+	auto umi = gs.makeMove(m);
+	int score = -alphaBeta(gs, -beta, -alpha,
 				depth - 1, ply + 1, line, oldpv);
+	gs.unmakeMove(umi);
 
 	if (score > bestscore) {
 	    bestscore = score;
