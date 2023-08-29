@@ -21,8 +21,13 @@
  * 		- single check -> set special check evasion masks
  * 	- detect pinned pieces
  */
-void generateLegalMoves(const GameState& gs, std::vector<Move>& movelist,
+[[nodiscard]]
+int generateLegalMoves(const GameState& gs, std::vector<Move>& movelist,
 							    bool& inCheck) {
+    movelist.resize(azalea::maxMoves);
+    // holds the number of legal moves, to be returned
+    int nmoves = 0;
+
     inCheck = false;
 
     // reset movelist
@@ -55,14 +60,16 @@ void generateLegalMoves(const GameState& gs, std::vector<Move>& movelist,
     // add king moves to movelist
     while (kingCaptures) { // captures
 	const int to = BSF(kingCaptures);
-	movelist.push_back(Move(ownKingIndex, to, true, false, false,
+	movelist[nmoves] = (Move(ownKingIndex, to, true, false, false,
 						  false, false, ' '));
+	nmoves++;
 	kingCaptures &= kingCaptures - 1;
     }
     while (kingPushes) { // quiet moves
 	const int to = BSF(kingPushes);
-	movelist.push_back(Move(ownKingIndex, to, false, false, false,
+	movelist[nmoves] = (Move(ownKingIndex, to, false, false, false,
 						  false, false, ' '));
+	nmoves++;
 	kingPushes &= kingPushes - 1;
     }
 
@@ -104,7 +111,7 @@ void generateLegalMoves(const GameState& gs, std::vector<Move>& movelist,
 			    | diagChecker | lateralChecker;
 	const int nChecker = POP(checker); // number of pieces giving check
 					   
-	if (nChecker > 1) return; // double check, we are done
+	if (nChecker > 1) return nmoves; // double check, we are done
 	// seems like we are only checked by a single piece
 	captureMask = checker; // we may always capture the checking piece
 	// 'pushMask' is empty unless it's a sliding piece giving check
@@ -159,14 +166,16 @@ void generateLegalMoves(const GameState& gs, std::vector<Move>& movelist,
 	while (captures) {
 	    const int to = BSF(captures);
 	    captures &= captures - 1;
-	    movelist.push_back(Move(from, to, true, false, false,
+	    movelist[nmoves] = (Move(from, to, true, false, false,
 						false, false, ' '));
+	    nmoves++;
 	}
 	while (pushes) {
 	    const int to = BSF(pushes);
 	    pushes &= pushes - 1;
-	    movelist.push_back(Move(from, to, false, false, false,
+	    movelist[nmoves] = (Move(from, to, false, false, false,
 						false, false, ' '));
+	    nmoves++;
 	}
     }
     // for pinned rooks the rooklike attacks of the king on an empty board are
@@ -186,14 +195,16 @@ void generateLegalMoves(const GameState& gs, std::vector<Move>& movelist,
 	while (captures) {
 	    const int to = BSF(captures);
 	    captures &= captures - 1;
-	    movelist.push_back(Move(from, to, true, false, false,
+	    movelist[nmoves] = (Move(from, to, true, false, false,
 						false, false, ' '));
+	    nmoves++;
 	}
 	while (pushes) {
 	    const int to = BSF(pushes);
 	    pushes &= pushes - 1;
-	    movelist.push_back(Move(from, to, false, false, false,
+	    movelist[nmoves] = (Move(from, to, false, false, false,
 						false, false, ' '));
+	    nmoves++;
 	}
     }
 
@@ -216,14 +227,16 @@ void generateLegalMoves(const GameState& gs, std::vector<Move>& movelist,
 	while (captures) {
 	    const int to = BSF(captures);
 	    captures &= captures - 1;
-	    movelist.push_back(Move(from, to, true, false, false,
+	    movelist[nmoves] = (Move(from, to, true, false, false,
 						false, false, ' '));
+	    nmoves++;
 	}
 	while (pushes) {
 	    const int to = BSF(pushes);
 	    pushes &= pushes - 1;
-	    movelist.push_back(Move(from, to, false, false, false,
+	    movelist[nmoves] = (Move(from, to, false, false, false,
 						false, false, ' '));
+	    nmoves++;
 	}
     }
     // for pinned bishops the bishoplike attacks of the king on an empty board
@@ -243,14 +256,16 @@ void generateLegalMoves(const GameState& gs, std::vector<Move>& movelist,
 	while (captures) {
 	    const int to = BSF(captures);
 	    captures &= captures - 1;
-	    movelist.push_back(Move(from, to, true, false, false,
+	    movelist[nmoves] = (Move(from, to, true, false, false,
 						false, false, ' '));
+	    nmoves++;
 	}
 	while (pushes) {
 	    const int to = BSF(pushes);
 	    pushes &= pushes - 1;
-	    movelist.push_back(Move(from, to, false, false, false,
+	    movelist[nmoves] = (Move(from, to, false, false, false,
 						false, false, ' '));
+	    nmoves++;
 	}
     }
 
@@ -270,14 +285,16 @@ void generateLegalMoves(const GameState& gs, std::vector<Move>& movelist,
 	while (captures) {
 	    const int to = BSF(captures);
 	    captures &= captures - 1;
-	    movelist.push_back(Move(from, to, true, false, false,
+	    movelist[nmoves] = (Move(from, to, true, false, false,
 						false, false, ' '));
+	    nmoves++;
 	}
 	while (pushes) {
 	    const int to = BSF(pushes);
 	    pushes &= pushes - 1;
-	    movelist.push_back(Move(from, to, false, false, false,
+	    movelist[nmoves] = (Move(from, to, false, false, false,
 						false, false, ' '));
+	    nmoves++;
 	}
     }
 
@@ -304,18 +321,23 @@ void generateLegalMoves(const GameState& gs, std::vector<Move>& movelist,
 	    const int to = BSF(freePushes);
 	    freePushes &= freePushes - 1;
 	    if (to>55) { // promotion!
-		movelist.push_back(Move(to-8, to, false, false, false,
+		movelist[nmoves] = (Move(to-8, to, false, false, false,
 						    false, true, 'q'));
-		movelist.push_back(Move(to-8, to, false, false, false,
+		nmoves++;
+		movelist[nmoves] = (Move(to-8, to, false, false, false,
 						    false, true, 'n'));
-		movelist.push_back(Move(to-8, to, false, false, false,
+		nmoves++;
+		movelist[nmoves] = (Move(to-8, to, false, false, false,
 						    false, true, 'r'));
-		movelist.push_back(Move(to-8, to, false, false, false,
+		nmoves++;
+		movelist[nmoves] = (Move(to-8, to, false, false, false,
 						    false, true, 'b'));
+		nmoves++;
 
 	    } else {
-		movelist.push_back(Move(to-8, to, false, false, false,
+		movelist[nmoves] = (Move(to-8, to, false, false, false,
 						    false, false, ' '));
+		nmoves++;
 	    }
 	}
 
@@ -331,8 +353,9 @@ void generateLegalMoves(const GameState& gs, std::vector<Move>& movelist,
 	while (freeDoublePushes) {
 	    const int to = BSF(freeDoublePushes);
 	    freeDoublePushes &= freeDoublePushes - 1;
-	    movelist.push_back(Move(to-16, to, false, true, false,
+	    movelist[nmoves] = (Move(to-16, to, false, true, false,
 						false, false, ' '));
+	    nmoves++;
 	}
 
 	// pinned pawns
@@ -349,15 +372,18 @@ void generateLegalMoves(const GameState& gs, std::vector<Move>& movelist,
 	    bitb pawnMask = (1ULL << from);
 	    bitb singlePush = (pawnMask << 8) & ~b.occ & pushMask;
 	    if (singlePush) {
-		movelist.push_back(Move(from, from+8, false, false, false,
+		movelist[nmoves] = (Move(from, from+8, false, false, false,
 						    false, false, ' '));
+		nmoves++;
 	    }
 	    if (from < 16) // pawn on starting rank
 	    if ((pawnMask << 8) & ~b.occ) { // single push is free
 		const int to = from + 16;
-		if ((1ULL << to) & ~b.occ & pushMask) // double push allowed
-		movelist.push_back(Move(to-16, to, false, true, false,
+		if ((1ULL << to) & ~b.occ & pushMask) {// double push allowed
+		    movelist[nmoves] = (Move(to-16, to, false, true, false,
 						    false, false, ' '));
+		    nmoves++;
+		}
 	    }
 	}
 
@@ -377,18 +403,23 @@ void generateLegalMoves(const GameState& gs, std::vector<Move>& movelist,
 	    const int to = BSF(freePushes);
 	    freePushes &= freePushes - 1;
 	    if (to<8) { // promotion!
-		movelist.push_back(Move(to+8, to, false, false, false,
+		movelist[nmoves] = (Move(to+8, to, false, false, false,
 						    false, true, 'q'));
-		movelist.push_back(Move(to+8, to, false, false, false,
+		nmoves++;
+		movelist[nmoves] = (Move(to+8, to, false, false, false,
 						    false, true, 'n'));
-		movelist.push_back(Move(to+8, to, false, false, false,
+		nmoves++;
+		movelist[nmoves] = (Move(to+8, to, false, false, false,
 						    false, true, 'r'));
-		movelist.push_back(Move(to+8, to, false, false, false,
+		nmoves++;
+		movelist[nmoves] = (Move(to+8, to, false, false, false,
 						    false, true, 'b'));
+		nmoves++;
 
 	    } else {
-		movelist.push_back(Move(to+8, to, false, false, false,
+		movelist[nmoves] = (Move(to+8, to, false, false, false,
 						    false, false, ' '));
+		nmoves++;
 	    }
 	}
 
@@ -404,8 +435,9 @@ void generateLegalMoves(const GameState& gs, std::vector<Move>& movelist,
 	while (freeDoublePushes) {
 	    const int to = BSF(freeDoublePushes);
 	    freeDoublePushes &= freeDoublePushes - 1;
-	    movelist.push_back(Move(to+16, to, false, true, false,
+	    movelist[nmoves] = (Move(to+16, to, false, true, false,
 						false, false, ' '));
+	    nmoves++;
 	}
 
 	// pinned pawns
@@ -422,15 +454,18 @@ void generateLegalMoves(const GameState& gs, std::vector<Move>& movelist,
 	    bitb pawnMask = (1ULL << from);
 	    bitb singlePush = (pawnMask >> 8) & ~b.occ & pushMask;
 	    if (singlePush) {
-		movelist.push_back(Move(from, from-8, false, false, false,
+		movelist[nmoves] = (Move(from, from-8, false, false, false,
 						    false, false, ' '));
+		nmoves++;
 	    }
 	    if (from > 47) // pawn on starting rank
 	    if ((pawnMask >> 8) & ~b.occ) { // single push is free
 		const int to = from - 16;
-		if ((1ULL << to) & ~b.occ & pushMask) // double push allowed
-		movelist.push_back(Move(to+16, to, false, true, false,
+		if ((1ULL << to) & ~b.occ & pushMask) {// double push allowed
+		    movelist[nmoves] = (Move(to+16, to, false, true, false,
 						    false, false, ' '));
+		    nmoves++;
+		}
 	    }
 	}
     }
@@ -450,17 +485,22 @@ void generateLegalMoves(const GameState& gs, std::vector<Move>& movelist,
 	    const int to = BSF(leftAtks);
 	    leftAtks &= leftAtks - 1;
 	    if (to>55) { // promotion!
-		movelist.push_back(Move(to-9, to, true, false, false,
+		movelist[nmoves] = (Move(to-9, to, true, false, false,
 						    false, true, 'q'));
-		movelist.push_back(Move(to-9, to, true, false, false,
+		nmoves++;
+		movelist[nmoves] = (Move(to-9, to, true, false, false,
 						    false, true, 'n'));
-		movelist.push_back(Move(to-9, to, true, false, false,
+		nmoves++;
+		movelist[nmoves] = (Move(to-9, to, true, false, false,
 						    false, true, 'r'));
-		movelist.push_back(Move(to-9, to, true, false, false,
+		nmoves++;
+		movelist[nmoves] = (Move(to-9, to, true, false, false,
 						    false, true, 'b'));
+		nmoves++;
 	    } else {
-		movelist.push_back(Move(to-9, to, true, false, false,
+		movelist[nmoves] = (Move(to-9, to, true, false, false,
 						    false, false, ' '));
+		nmoves++;
 	    }
 	}
 	// capture to the right (ne, <<7) so no pawns from the h file
@@ -470,17 +510,22 @@ void generateLegalMoves(const GameState& gs, std::vector<Move>& movelist,
 	    const int to = BSF(rightAtks);
 	    rightAtks &= rightAtks - 1;
 	    if (to>55) { // promotion!
-		movelist.push_back(Move(to-7, to, true, false, false,
+		movelist[nmoves] = (Move(to-7, to, true, false, false,
 						    false, true, 'q'));
-		movelist.push_back(Move(to-7, to, true, false, false,
+		nmoves++;
+		movelist[nmoves] = (Move(to-7, to, true, false, false,
 						    false, true, 'n'));
-		movelist.push_back(Move(to-7, to, true, false, false,
+		nmoves++;
+		movelist[nmoves] = (Move(to-7, to, true, false, false,
 						    false, true, 'r'));
-		movelist.push_back(Move(to-7, to, true, false, false,
+		nmoves++;
+		movelist[nmoves] = (Move(to-7, to, true, false, false,
 						    false, true, 'b'));
+		nmoves++;
 	    } else {
-		movelist.push_back(Move(to-7, to, true, false, false,
+		movelist[nmoves] = (Move(to-7, to, true, false, false,
 						    false, false, ' '));
+		nmoves++;
 	    }
 	}
 	// now handle the pinned pawns
@@ -493,17 +538,22 @@ void generateLegalMoves(const GameState& gs, std::vector<Move>& movelist,
 		const int to = from + 9;
 		if ((1ULL<<to) & captureMask) {
 		    if (to>55) { // promotion
-			movelist.push_back(Move(from, to, true, false, false,
+			movelist[nmoves] = (Move(from, to, true, false, false,
 							false, true, 'q'));
-			movelist.push_back(Move(from, to, true, false, false,
+			nmoves++;
+			movelist[nmoves] = (Move(from, to, true, false, false,
 							false, true, 'n'));
-			movelist.push_back(Move(from, to, true, false, false,
+			nmoves++;
+			movelist[nmoves] = (Move(from, to, true, false, false,
 							false, true, 'r'));
-			movelist.push_back(Move(from, to, true, false, false,
+			nmoves++;
+			movelist[nmoves] = (Move(from, to, true, false, false,
 							false, true, 'b'));
+			nmoves++;
 		    } else {
-			movelist.push_back(Move(from, to, true, false, false,
+			movelist[nmoves] = (Move(from, to, true, false, false,
 							false, false, ' '));
+			nmoves++;
 		    }
 		}
 	    // pinned along a antidiagonal
@@ -512,17 +562,22 @@ void generateLegalMoves(const GameState& gs, std::vector<Move>& movelist,
 		const int to = from + 7;
 		if ((1ULL<<to) & captureMask) {
 		    if (to>55) { // promotion
-			movelist.push_back(Move(from, to, true, false, false,
+			movelist[nmoves] = (Move(from, to, true, false, false,
 							false, true, 'q'));
-			movelist.push_back(Move(from, to, true, false, false,
+			nmoves++;
+			movelist[nmoves] = (Move(from, to, true, false, false,
 							false, true, 'n'));
-			movelist.push_back(Move(from, to, true, false, false,
+			nmoves++;
+			movelist[nmoves] = (Move(from, to, true, false, false,
 							false, true, 'r'));
-			movelist.push_back(Move(from, to, true, false, false,
+			nmoves++;
+			movelist[nmoves] = (Move(from, to, true, false, false,
 							false, true, 'b'));
+			nmoves++;
 		    } else {
-			movelist.push_back(Move(from, to, true, false, false,
+			movelist[nmoves] = (Move(from, to, true, false, false,
 							false, false, ' '));
+			nmoves++;
 		    }
 		}
 	    }
@@ -539,17 +594,22 @@ void generateLegalMoves(const GameState& gs, std::vector<Move>& movelist,
 	    const int to = BSF(leftAtks);
 	    leftAtks &= leftAtks - 1;
 	    if (to<8) { // promotion!
-		movelist.push_back(Move(to+7, to, true, false, false,
+		movelist[nmoves] = (Move(to+7, to, true, false, false,
 						    false, true, 'q'));
-		movelist.push_back(Move(to+7, to, true, false, false,
+		nmoves++;
+		movelist[nmoves] = (Move(to+7, to, true, false, false,
 						    false, true, 'n'));
-		movelist.push_back(Move(to+7, to, true, false, false,
+		nmoves++;
+		movelist[nmoves] = (Move(to+7, to, true, false, false,
 						    false, true, 'r'));
-		movelist.push_back(Move(to+7, to, true, false, false,
+		nmoves++;
+		movelist[nmoves] = (Move(to+7, to, true, false, false,
 						    false, true, 'b'));
+		nmoves++;
 	    } else {
-		movelist.push_back(Move(to+7, to, true, false, false,
+		movelist[nmoves] = (Move(to+7, to, true, false, false,
 						    false, false, ' '));
+		nmoves++;
 	    }
 	}
 	// capture to the right (ne, >>9) so no pawns from the h file
@@ -559,17 +619,22 @@ void generateLegalMoves(const GameState& gs, std::vector<Move>& movelist,
 	    const int to = BSF(rightAtks);
 	    rightAtks &= rightAtks - 1;
 	    if (to<8) { // promotion!
-		movelist.push_back(Move(to+9, to, true, false, false,
+		movelist[nmoves] = (Move(to+9, to, true, false, false,
 						    false, true, 'q'));
-		movelist.push_back(Move(to+9, to, true, false, false,
+		nmoves++;
+		movelist[nmoves] = (Move(to+9, to, true, false, false,
 						    false, true, 'n'));
-		movelist.push_back(Move(to+9, to, true, false, false,
+		nmoves++;
+		movelist[nmoves] = (Move(to+9, to, true, false, false,
 						    false, true, 'r'));
-		movelist.push_back(Move(to+9, to, true, false, false,
+		nmoves++;
+		movelist[nmoves] = (Move(to+9, to, true, false, false,
 						    false, true, 'b'));
+		nmoves++;
 	    } else {
-		movelist.push_back(Move(to+9, to, true, false, false,
+		movelist[nmoves] = (Move(to+9, to, true, false, false,
 						    false, false, ' '));
+		nmoves++;
 	    }
 	}
 	// now handle the pinned pawns
@@ -582,17 +647,22 @@ void generateLegalMoves(const GameState& gs, std::vector<Move>& movelist,
 		const int to = from - 9;
 		if ((1ULL<<to) & captureMask) {
 		    if (to>55) { // promotion
-			movelist.push_back(Move(from, to, true, false, false,
+			movelist[nmoves] = (Move(from, to, true, false, false,
 							false, true, 'q'));
-			movelist.push_back(Move(from, to, true, false, false,
+			nmoves++;
+			movelist[nmoves] = (Move(from, to, true, false, false,
 							false, true, 'n'));
-			movelist.push_back(Move(from, to, true, false, false,
+			nmoves++;
+			movelist[nmoves] = (Move(from, to, true, false, false,
 							false, true, 'r'));
-			movelist.push_back(Move(from, to, true, false, false,
+			nmoves++;
+			movelist[nmoves] = (Move(from, to, true, false, false,
 							false, true, 'b'));
+			nmoves++;
 		    } else {
-			movelist.push_back(Move(from, to, true, false, false,
+			movelist[nmoves] = (Move(from, to, true, false, false,
 							false, false, ' '));
+			nmoves++;
 		    }
 		}
 	    // pinned along a antidiagonal
@@ -601,17 +671,22 @@ void generateLegalMoves(const GameState& gs, std::vector<Move>& movelist,
 		const int to = from - 7;
 		if ((1ULL<<to) & captureMask) {
 		    if (to>55) { // promotion
-			movelist.push_back(Move(from, to, true, false, false,
+			movelist[nmoves] = (Move(from, to, true, false, false,
 							false, true, 'q'));
-			movelist.push_back(Move(from, to, true, false, false,
+			nmoves++;
+			movelist[nmoves] = (Move(from, to, true, false, false,
 							false, true, 'n'));
-			movelist.push_back(Move(from, to, true, false, false,
+			nmoves++;
+			movelist[nmoves] = (Move(from, to, true, false, false,
 							false, true, 'r'));
-			movelist.push_back(Move(from, to, true, false, false,
+			nmoves++;
+			movelist[nmoves] = (Move(from, to, true, false, false,
 							false, true, 'b'));
+			nmoves++;
 		    } else {
-			movelist.push_back(Move(from, to, true, false, false,
+			movelist[nmoves] = (Move(from, to, true, false, false,
 							false, false, ' '));
+			nmoves++;
 		    }
 		}
 	    }
@@ -667,8 +742,9 @@ void generateLegalMoves(const GameState& gs, std::vector<Move>& movelist,
 	    	   }
 	        }
 	    }
-	    movelist.push_back(Move(from, gs.epTarget, true, false, true,
+	    movelist[nmoves] = (Move(from, gs.epTarget, true, false, true,
 							false, false, ' '));
+	    nmoves++;
 	}
 	// dia pinned pawns here
 	while(diaPinnedPawns) {
@@ -677,15 +753,17 @@ void generateLegalMoves(const GameState& gs, std::vector<Move>& movelist,
 	    // same diagonal
 	    if (diags[from] == diags[ownKingIndex]
 		and diags[from] == diags[gs.epTarget]) {
-		     movelist.push_back(
+		     movelist[nmoves] = (
 			     Move(from, gs.epTarget, true, false, true,
 						    false, false, ' '));
+		    nmoves++;
 	    // same antidiagonal
 	    } else if (antidiags[from] == antidiags[ownKingIndex]
-		    and antidiags[from] == antidiags[gs.epTarget]) {
-		     movelist.push_back(
+		and antidiags[from] == antidiags[gs.epTarget]) {
+		     movelist[nmoves] = (
 			     Move(from, gs.epTarget, true, false, true,
 						    false, false, ' '));
+		    nmoves++;
 	    }
 	}
     }
@@ -704,9 +782,11 @@ void generateLegalMoves(const GameState& gs, std::vector<Move>& movelist,
     	    // are e1, f1 and g1 safe?
 	    const bool isSafe = (wsDangerMask & ~kingDanger) == wsDangerMask;
 	    // only castle if free and safe
-	    if (isFree and isSafe) 
-		movelist.push_back(Move(ownKingIndex, 1, false, false, false,
+	    if (isFree and isSafe) {
+		movelist[nmoves] = (Move(ownKingIndex, 1, false, false, false,
 							true, false, ' '));
+		nmoves++;
+	    }
     	}
 	// white queenside
 	if (gs.whiteLong) {
@@ -717,9 +797,11 @@ void generateLegalMoves(const GameState& gs, std::vector<Move>& movelist,
     	    // are b1, c1, d1 and e1 safe?
 	    const bool isSafe = (wlDangerMask & ~kingDanger) == wlDangerMask;
 	    // only castle if free and safe
-	    if (isFree and isSafe) 
-		movelist.push_back(Move(ownKingIndex, 5, false, false, false,
+	    if (isFree and isSafe) {
+		movelist[nmoves] = (Move(ownKingIndex, 5, false, false, false,
 							true, false, ' '));
+		nmoves++;
+	    }
     	}
     } else { // black
 	// black kingside
@@ -731,9 +813,11 @@ void generateLegalMoves(const GameState& gs, std::vector<Move>& movelist,
     	    // are e8, f8 and g8 safe?
 	    const bool isSafe = (bsDangerMask & ~kingDanger) == bsDangerMask;
 	    // only castle if free and safe
-	    if (isFree and isSafe) 
-		movelist.push_back(Move(ownKingIndex, 57, false, false, false,
+	    if (isFree and isSafe) {
+		movelist[nmoves] = (Move(ownKingIndex, 57, false, false, false,
 							true, false, ' '));
+		nmoves++;
+	    }
     	}
 	// black queenside
 	if (gs.blackLong) {
@@ -744,12 +828,15 @@ void generateLegalMoves(const GameState& gs, std::vector<Move>& movelist,
     	    // are c8, d8 and e8 safe?
 	    const bool isSafe = (blDangerMask & ~kingDanger) == blDangerMask;
 	    // only castle if free and safe
-	    if (isFree and isSafe) 
-		movelist.push_back(Move(ownKingIndex, 61, false, false, false,
+	    if (isFree and isSafe) {
+		movelist[nmoves] = (Move(ownKingIndex, 61, false, false, false,
 							true, false, ' '));
+		nmoves++;
+	    }
     	}
     }
 
+    return nmoves;
 } // end of generateLegalMoves
 
 /******************************************************************************

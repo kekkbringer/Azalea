@@ -82,8 +82,9 @@ void runTests() {
     GameState gs = fen("4k3/8/8/8/8/8/8/4K3 w - - 0 1");
     auto gscopy = gs;
     std::vector<Move> ml; bool inCheck;
-    generateLegalMoves(gscopy, ml, inCheck);
-    for (const auto& m: ml) {
+    const int nmoves = generateLegalMoves(gscopy, ml, inCheck);
+    for (int i=0; i<nmoves; i++) {
+	const auto& m = ml[i];
 	const auto umi = gscopy.makeMove(m);
 	gscopy.unmakeMove(umi);
 	if (gscopy.board.wPawns == gs.board.wPawns) passedMakeUnmake++;

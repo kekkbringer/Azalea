@@ -10,7 +10,8 @@
  * Function that generates all legal moves in a given position. Returns the
  * number of legal moves and gives the moves themself on 'movelist'.
  */
-void generateLegalMoves(const GameState& gs, std::vector<Move>& movelist,
+[[nodiscard]]
+int generateLegalMoves(const GameState& gs, std::vector<Move>& movelist,
 							bool& inCheck);
 
 /******************************************************************************

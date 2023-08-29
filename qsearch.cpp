@@ -22,9 +22,11 @@ int qsearch(GameState& gs, int alpha, int beta) {
 
     std::vector<Move> movelist;
     bool inCheck;
-    generateLegalMoves(gs, movelist, inCheck);
+    const int nmoves = generateLegalMoves(gs, movelist, inCheck);
     
-    for (const auto& m: movelist) {
+    for (int i=0; i<nmoves; i++) {
+	const auto& m = movelist[i];
+
 	if (!m.capture) continue;
 
 	auto umi = gs.makeMove(m);

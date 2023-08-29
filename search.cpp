@@ -112,12 +112,12 @@ int alphaBeta(GameState& gs, int alpha, int beta, int depth, int ply,
 
     std::vector<Move> movelist;
     bool inCheck;
-    generateLegalMoves(gs, movelist, inCheck);
+    const int nmoves = generateLegalMoves(gs, movelist, inCheck);
 
     // singular check extension
     if (inCheck) depth++;
 
-    if (movelist.size() == 0) {
+    if (nmoves == 0) {
         if (inCheck) return azalea::MININT + 100 + ply;
 		return 0;
     }
@@ -128,26 +128,10 @@ int alphaBeta(GameState& gs, int alpha, int beta, int depth, int ply,
 		return qsearch(gs, alpha, beta);
     }
 
-    //// firstly, try oldpv move if available
-    //if (ply==0) {
-    //    auto dummy = gs;
-    //    for (auto m: oldpv) dummy.makeMove(m);
-    //    // TODO: second '1' in next line is 'wrong'
-    //    int score = -alphaBeta(dummy, -beta, -alpha, 1, 1,
-    //    							line, oldpv);
-    //    bestscore = score;
-    //    if (score > beta) return bestscore;
-    //    if (score > alpha) {
-    //        alpha = score;
-    //        pvline.clear();
-    //        for (auto m: oldpv) pvline.push_back(m);
-    //        //pvline.push_back(line[0]);
-    //    }
-    //    line.clear();
-    //}
-
     // iterate over legal moves
-    for (const auto& m: movelist) {
+    for (int i=0; i<nmoves; i++) {
+	const auto& m = movelist[i];
+
 	auto umi = gs.makeMove(m);
 	int score = -alphaBeta(gs, -beta, -alpha,
 				depth - 1, ply + 1, line, oldpv);

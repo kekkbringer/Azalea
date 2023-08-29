@@ -20,7 +20,7 @@ namespace azalea {
      */
     constexpr int majorVersion = 0;
     constexpr int minorVersion = 0;
-    constexpr int patchVersion = 5;
+    constexpr int patchVersion = 6;
 
     /**************************************************************************
      * Statistics section
@@ -48,5 +48,5 @@ namespace azalea {
      *
      * maxMoves - maximum number of moves possible
      */
-    constexpr int maxMoves = 218;
+    constexpr int maxMoves = 256;
 }

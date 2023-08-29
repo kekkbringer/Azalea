@@ -64,11 +64,12 @@ int main(int argc, char* argv[]) {    if (argc > 1) {
 	// legal moves
 	} else if (command == "legalmoves") {
 	    std::vector<Move> ml;
-	    generateLegalMoves(gs, ml, inCheck);
-	    for (const auto& m: ml) {
+	    const int nmoves = generateLegalMoves(gs, ml, inCheck);
+	    for (int i=0; i<nmoves; i++) {
+		const auto& m = ml[i];
 		std::cout << m << "  ";
 	    }
-	    std::cout << "\nnumber of moves: " << ml.size() << std::endl;
+	    std::cout << "\nnumber of moves: " << nmoves << std::endl;
 
 	// uci standard stuff
 	} else if (command == "ucinewgame") {
@@ -95,13 +96,14 @@ int main(int argc, char* argv[]) {    if (argc > 1) {
 			// now actually make these moves
 			std::string mstring;
 			while (getline(mm, mstring, ' ')) {
-		    	std::vector<Move> ml;
-		    	generateLegalMoves(gs, ml, inCheck);
-		    	for (const auto& m: ml) {
-					if (mstring == toString(m)) {
-			    		gs.makeMove(m);
-					}
-		    	}
+			    std::vector<Move> ml;
+			    const int nmoves = generateLegalMoves(gs, ml, inCheck);
+			    for (int i=0; i<nmoves; i++) {
+				const auto& m = ml[i];
+				if (mstring == toString(m)) {
+				    gs.makeMove(m);
+				}
+			    }
 			}
 	    }
 
@@ -120,9 +122,9 @@ int main(int argc, char* argv[]) {    if (argc > 1) {
 	    } else {
 			// just make a random move
 			std::vector<Move> ml;
-			generateLegalMoves(gs, ml, inCheck);
+			const int nmoves = generateLegalMoves(gs, ml, inCheck);
 			srand(time(NULL));
-			const int random = rand() % ml.size();
+			const int random = rand() % nmoves;
 			std::cout << "bestmove " << ml[random] << std::endl;
 	    }
 	} else if (command.substr(0, 3) == "uci") {
