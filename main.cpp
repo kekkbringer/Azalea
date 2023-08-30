@@ -63,7 +63,7 @@ int main(int argc, char* argv[]) {    if (argc > 1) {
 
 	// legal moves
 	} else if (command == "legalmoves") {
-	    std::vector<Move> ml;
+	    Move ml[azalea::maxMoves];
 	    const int nmoves = generateLegalMoves(gs, ml, inCheck);
 	    for (int i=0; i<nmoves; i++) {
 		const auto& m = ml[i];
@@ -96,7 +96,7 @@ int main(int argc, char* argv[]) {    if (argc > 1) {
 			// now actually make these moves
 			std::string mstring;
 			while (getline(mm, mstring, ' ')) {
-			    std::vector<Move> ml;
+			    Move ml[azalea::maxMoves];
 			    const int nmoves = generateLegalMoves(gs, ml, inCheck);
 			    for (int i=0; i<nmoves; i++) {
 				const auto& m = ml[i];
@@ -121,7 +121,7 @@ int main(int argc, char* argv[]) {    if (argc > 1) {
 			search(gs, azalea::maxDepth);
 	    } else {
 			// just make a random move
-			std::vector<Move> ml;
+			Move ml[azalea::maxMoves];
 			const int nmoves = generateLegalMoves(gs, ml, inCheck);
 			srand(time(NULL));
 			const int random = rand() % nmoves;

@@ -22,16 +22,12 @@
  * 	- detect pinned pieces
  */
 [[nodiscard]]
-int generateLegalMoves(const GameState& gs, std::vector<Move>& movelist,
+int generateLegalMoves(const GameState& gs, Move movelist[azalea::maxMoves],
 							    bool& inCheck) {
-    movelist.resize(azalea::maxMoves);
     // holds the number of legal moves, to be returned
     int nmoves = 0;
 
     inCheck = false;
-
-    // reset movelist
-    movelist.resize(0);
 
     // reference to board
     const Board& b = gs.board;

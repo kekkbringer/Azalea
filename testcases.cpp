@@ -81,7 +81,7 @@ void runTests() {
     std::cout << " :: testing make/unmake move engine...\n" << std::flush;
     GameState gs = fen("4k3/8/8/8/8/8/8/4K3 w - - 0 1");
     auto gscopy = gs;
-    std::vector<Move> ml; bool inCheck;
+    Move ml[azalea::maxMoves]; bool inCheck;
     const int nmoves = generateLegalMoves(gscopy, ml, inCheck);
     for (int i=0; i<nmoves; i++) {
 	const auto& m = ml[i];

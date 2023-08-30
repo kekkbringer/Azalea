@@ -9,7 +9,7 @@
 
 void perftdiv(const GameState& gs, int depth) {
     const auto start = std::chrono::high_resolution_clock::now();
-    std::vector<Move> ml;
+    Move ml[azalea::maxMoves];
     bool inCheck;
     const int nmoves = generateLegalMoves(gs, ml, inCheck);
     unsigned long long int totnodes = 0;
@@ -32,7 +32,7 @@ void perftdiv(const GameState& gs, int depth) {
 unsigned long long int perft(GameState& gs, int depth) {
     unsigned long long int nodes = 0;
 
-    std::vector<Move> ml;
+    Move ml[azalea::maxMoves];
     bool inCheck;
     const int nMoves = generateLegalMoves(gs, ml, inCheck);
 

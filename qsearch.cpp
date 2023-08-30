@@ -20,7 +20,7 @@ int qsearch(GameState& gs, int alpha, int beta) {
 	alpha = standpat;
     }
 
-    std::vector<Move> movelist;
+    Move movelist[azalea::maxMoves];
     bool inCheck;
     const int nmoves = generateLegalMoves(gs, movelist, inCheck);
     

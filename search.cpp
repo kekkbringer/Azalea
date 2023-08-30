@@ -110,7 +110,7 @@ int alphaBeta(GameState& gs, int alpha, int beta, int depth, int ply,
     int bestscore = azalea::MININT;
     std::vector<Move> line;
 
-    std::vector<Move> movelist;
+    Move movelist[azalea::maxMoves];
     bool inCheck;
     const int nmoves = generateLegalMoves(gs, movelist, inCheck);
 

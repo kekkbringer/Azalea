@@ -11,7 +11,7 @@
  * number of legal moves and gives the moves themself on 'movelist'.
  */
 [[nodiscard]]
-int generateLegalMoves(const GameState& gs, std::vector<Move>& movelist,
+int generateLegalMoves(const GameState& gs, Move movelist[azalea::maxMoves],
 							bool& inCheck);
 
 /******************************************************************************
