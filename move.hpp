@@ -26,6 +26,13 @@ public:
     Move(int f, int t, bool c, bool d, bool e, bool cas, bool p, char pp)
 	: from(f), to(t), capture(c), doublePawnPush(d), ep(e),
 		castle(cas), promo(p), promoPiece(pp) {}
+
+    bool operator==(const Move& m) const {
+	return from==m.from and to==m.to and capture==m.capture
+	    and doublePawnPush==m.doublePawnPush and ep==m.ep
+	    and castle==m.castle and promo==m.promo
+	    and promoPiece==m.promoPiece;
+    }
 };
 
 // auxillary enum

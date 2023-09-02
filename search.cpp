@@ -14,16 +14,24 @@
 #include "util.hpp" // TODO delete
 
 
-unsigned long long int nodes;
+unsigned long long int nodes, qnodes;
+std::chrono::high_resolution_clock::time_point beginSearch;
+extern int movetime;
+bool terminateSearch;
 
+using namespace std::chrono;
 
 /******************************************************************************
- * Main iterative deepening search function, calls alphaBeta
- */
+* Main iterative deepening search function, calls alphaBeta
+*/
 void search(GameState& gs, const int depth) {
-    using namespace std::chrono;
+    terminateSearch = false;
+    movetime *= 0.99; // only use 99% of time allocated to be safe
 
-    std::vector<Move> pvline, oldpv;
+    beginSearch = high_resolution_clock::now();
+
+    std::vector<Move> pvline, oldPV;
+    Move bestmove;
 
     int alpha = azalea::MININT;
     int beta  = azalea::MAXINT;
@@ -33,11 +41,16 @@ void search(GameState& gs, const int depth) {
 	const auto start = high_resolution_clock::now();
 
 	nodes = 0;
+	qnodes = 0;
 	// call to core search routine
 	pvline.clear();
     	const int score = alphaBeta(gs, alpha, beta,
-    	    			    idDepth, 0, pvline, oldpv);
-	oldpv = pvline;
+    	    			    idDepth, 0, pvline, bestmove);
+	if (terminateSearch) break;
+	bestmove = pvline[0]; // this is only needed as the search currently
+			      // does not try the bestmove of the previous
+			      // iteration first...
+	oldPV = pvline;
 
 	/**************************************************
 	 *             aspiration windows                 *
@@ -66,8 +79,8 @@ void search(GameState& gs, const int depth) {
 
 	// print number of nodes searched and total time of the iteration
 	const int ms = 1 + duration.count(); // millisecs, rounded up
-	std::cout << " nodes " << nodes << " time " << ms;
-	std::cout << " nps " << (nodes*1000)/ms;
+	std::cout << " nodes " << nodes << " qnodes " << qnodes;
+	std::cout<< " time " << ms << " nps " << (nodes*1000)/ms;
 
 	// print principle variation
 	std::cout << " pv ";
@@ -76,18 +89,19 @@ void search(GameState& gs, const int depth) {
     }
 
     // print final bestmove
-    std::cout << "bestmove " << pvline[0] << std::endl;
+    std::cout << "bestmove " << bestmove << std::endl;
 }
 
 /******************************************************************************
  * Benchmark function, calls alphaBeta outside of an ID framework
  */
 void searchNOID(GameState& gs, const int depth) {
-    std::vector<Move> pvline, oldpv;
+    std::vector<Move> pvline;
+    Move bestmove;
 
     // call to core search routine
     const int score = alphaBeta(gs, azalea::MININT, azalea::MAXINT,
-        			depth, 0, pvline, oldpv);
+        			depth, 0, pvline, bestmove);
 
     // print final search info
     std::cout << "info depth " << depth << " score cp " << score/10 << " pv ";
@@ -101,11 +115,16 @@ void searchNOID(GameState& gs, const int depth) {
  * Fail-soft alpha beta
  */
 int alphaBeta(GameState& gs, int alpha, int beta, int depth, int ply,
-		std::vector<Move>& pvline, const std::vector<Move>& oldpv) {
+		std::vector<Move>& pvline, Move& bestmove) {
     nodes++;
-    //if (nodes%2048 == 0) {
-    //    if (listenForStop()) return alpha;
-    //}
+    if (nodes%2048 == 0) {
+	const auto now = high_resolution_clock::now();
+	const auto dur = duration_cast<milliseconds>(now - beginSearch);
+	if (dur.count() >= movetime and movetime > 0) {
+	    terminateSearch = true;
+	    return alpha;
+	}
+    }
 
     int bestscore = azalea::MININT;
     std::vector<Move> line;
@@ -128,29 +147,18 @@ int alphaBeta(GameState& gs, int alpha, int beta, int depth, int ply,
 		return qsearch(gs, alpha, beta);
     }
 
-    //// firstly, try oldpv move if available
-    //if (ply==0) {
-    //    auto dummy = gs;
-    //    for (auto m: oldpv) dummy.makeMove(m);
-    //    // TODO: second '1' in next line is 'wrong'
-    //    int score = -alphaBeta(dummy, -beta, -alpha, 1, 1,
-    //    							line, oldpv);
-    //    bestscore = score;
-    //    if (score > beta) return bestscore;
-    //    if (score > alpha) {
-    //        alpha = score;
-    //        pvline.clear();
-    //        for (auto m: oldpv) pvline.push_back(m);
-    //        //pvline.push_back(line[0]);
-    //    }
-    //    line.clear();
+    //if (ply == 0 and depth > 1) {
+    //    movelist.erase(std::remove(movelist.begin(), movelist.end(), bestmove), movelist.end());
+    //    movelist.insert(movelist.begin(), bestmove);
     //}
 
     // iterate over legal moves
     for (const auto& m: movelist) {
+	if (terminateSearch) break;
+
 	auto umi = gs.makeMove(m);
 	int score = -alphaBeta(gs, -beta, -alpha,
-				depth - 1, ply + 1, line, oldpv);
+			    depth - 1, ply + 1, line, bestmove);
 	gs.unmakeMove(umi);
 
 	if (score > bestscore) {

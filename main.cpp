@@ -14,6 +14,9 @@
 #include "eval.hpp"
 #include "search.hpp"
 
+// movetime in ms
+int movetime;
+
 int main(int argc, char* argv[]) {    if (argc > 1) {
 	if (std::string(argv[1]) == "-v"
 				    or std::string(argv[1]) == "--version") {
@@ -112,11 +115,16 @@ int main(int argc, char* argv[]) {    if (argc > 1) {
 			    = std::stoi(command.substr(9, command.length()));
 			perftdiv(gs, depth);
 	    } else if (command.substr(3, 5) == "depth") {
-			const int depth
+		const int depth
 			    = std::stoi(command.substr(9, command.length()));
-			search(gs, depth);
+		movetime = -1;
+		search(gs, depth);
 	    } else if (command.substr(3, 9) == "infinite") {
-			search(gs, azalea::maxDepth);
+		movetime = -1;
+		search(gs, azalea::maxDepth);
+	    } else if (command.substr(3, 8) == "movetime") {
+		movetime = std::stoi(command.substr(12, command.length()));
+		search(gs, azalea::maxDepth);
 	    } else {
 			// just make a random move
 			std::vector<Move> ml;
