@@ -44,7 +44,7 @@ int qsearch(GameState& gs, int alpha, int beta) {
     generateLegalMoves(gs, movelist, inCheck);
     
     for (const auto& m: movelist) {
-	if (!m.capture) continue;
+	if (!m.capture and !(m.promo and m.promoPiece=='q')) continue;
 	if (terminateSearch) break;
 
 	auto umi = gs.makeMove(m);

@@ -147,10 +147,10 @@ int alphaBeta(GameState& gs, int alpha, int beta, int depth, int ply,
 		return qsearch(gs, alpha, beta);
     }
 
-    //if (ply == 0 and depth > 1) {
-    //    movelist.erase(std::remove(movelist.begin(), movelist.end(), bestmove), movelist.end());
-    //    movelist.insert(movelist.begin(), bestmove);
-    //}
+    if (ply == 0 and depth > 1 and !inCheck) {
+        movelist.erase(std::remove(movelist.begin(), movelist.end(), bestmove), movelist.end());
+        movelist.insert(movelist.begin(), bestmove);
+    }
 
     // iterate over legal moves
     for (const auto& m: movelist) {
