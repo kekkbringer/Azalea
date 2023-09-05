@@ -48,6 +48,22 @@ int qsearch(GameState& gs, int alpha, int beta) {
 	if (terminateSearch) break;
 
 	auto umi = gs.makeMove(m);
+
+	/* delta pruning
+    	int delta = 0;
+	switch (umi.capturedPiece) {
+	    case pieceType::pawn: delta = 1000; break;
+	    case pieceType::knight: delta = 3000; break;
+	    case pieceType::bishop: delta = 3250; break;
+	    case pieceType::rook: delta = 5000; break;
+	    case pieceType::queen: delta = 9000; break;
+	}
+	if (standpat+delta+azalea::deltaMargin < alpha and !umi.promotion) {
+	    gs.unmakeMove(umi);
+	    continue;
+	}
+    	// end ofdelta pruning */
+
 	int score = -qsearch(gs, -beta, -alpha);
 	gs.unmakeMove(umi);
 

@@ -42,6 +42,7 @@ namespace azalea {
     */
     constexpr int maxDepth = 100;
     constexpr int aspirationWindowSize = 520; // in millipawns
+    constexpr int deltaMargin = 2000; // 2 pawns
 
     /**************************************************************************
      * Move generation

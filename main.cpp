@@ -14,6 +14,8 @@
 #include "eval.hpp"
 #include "search.hpp"
 
+// max ist cool
+
 // movetime in ms
 int movetime;
 
