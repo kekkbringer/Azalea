@@ -14,6 +14,8 @@
 #include "eval.hpp"
 #include "search.hpp"
 
+// dominik ist cool
+
 // movetime in ms
 int movetime;
 
