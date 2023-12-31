@@ -2,6 +2,7 @@
 
 #include <string>
 #include <iostream>
+#include <sys/poll.h>
 
 #include "board.hpp"
 
@@ -56,8 +57,15 @@ std::ostream& operator<<(std::ostream& os, const Move& m) {
  * listen to std::cin, if 'stop' was given its returns true.
 */
 bool listenForStop() {
-    std::string command;
-    std::getline(std::cin, command);
-    if (command == "stop") return true;
+    struct pollfd fds;
+    int ret;
+    fds.fd = 0;
+    fds.events = POLLIN;
+    ret = poll(&fds, 1, 0);
+    if (ret == 1) {
+	std::string command;
+	std::getline(std::cin, command);
+	if (command == "stop") return true;
+    }
     return false;
 }

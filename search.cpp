@@ -37,8 +37,8 @@ void search(GameState& gs, const int depth) {
     int beta  = azalea::MAXINT;
 
     // "dumb" iterative deepening
+    const auto start = high_resolution_clock::now();
     for (int idDepth=1; idDepth<=depth; idDepth++) {
-	const auto start = high_resolution_clock::now();
 
 	nodes = 0;
 	qnodes = 0;
@@ -118,9 +118,15 @@ int alphaBeta(GameState& gs, int alpha, int beta, int depth, int ply,
 		std::vector<Move>& pvline, Move& bestmove) {
     nodes++;
     if (nodes%2048 == 0) {
-	const auto now = high_resolution_clock::now();
-	const auto dur = duration_cast<milliseconds>(now - beginSearch);
-	if (dur.count() >= movetime and movetime > 0) {
+	if (movetime > 0) {
+	    const auto now = high_resolution_clock::now();
+	    const auto dur = duration_cast<milliseconds>(now - beginSearch);
+	    if (dur.count() >= movetime) {
+		terminateSearch = true;
+		return alpha;
+	    }
+	}
+	if (listenForStop()) {
 	    terminateSearch = true;
 	    return alpha;
 	}
