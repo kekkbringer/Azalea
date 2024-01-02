@@ -1,0 +1,17 @@
+#!/bin/expect
+
+lassign $argv pos result quality
+spawn azalea
+send "position $pos\ngo $quality\n"
+expect {
+    "bestmove $result" {
+	send_user "passed\n"
+	exit 0
+    }
+    "bestmove " {
+	send_user "failed\n"
+	exit 1
+    }
+}
+send "quit\n"
+expect eof
