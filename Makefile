@@ -10,13 +10,13 @@ CXX = g++
 
 INCFLAGS ?= -I.
 
-CPPFLAGS ?= $(INCFLAGS) -MMD -MP -O3 -std=c++17 -flto=auto -Wall \
+CPPFLAGS ?= $(INCFLAGS) -MMD -MP -O3 -std=c++23 -Wall \
 			-march=native -fopenmp
-LDFLAGS ?= -O3 -flto=auto -fopenmp
+LDFLAGS ?= -O3 -fopenmp -lgomp
 
 # object files for main executable (excluding main itself)
 OBJ_LIST := fen.o util.o statistics.o movegenerator.o makeMove.o perft.o \
-	    eval.o search.o qsearch.o testcases.o unmakeMove.o
+	    search.o qsearch.o testcases.o unmakeMove.o
 
 # object files for test executable (excluding test main itself)
 TOBJ_LIST := board_test.o movegen_test.o perft_test.o

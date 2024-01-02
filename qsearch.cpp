@@ -7,6 +7,7 @@
 #include "movegenerator.hpp"
 #include "params.hpp"
 #include "eval.hpp"
+#include "util.hpp"
 
 using namespace std::chrono;
 
@@ -21,14 +22,22 @@ extern unsigned long long int qnodes;
  */
 int qsearch(GameState& gs, int alpha, int beta) {
     qnodes++;
-    int standpat = eval(gs);
+    int standpat = eval<false>(gs);
 
     if (qnodes%2048 == 0) {
-	const auto now = high_resolution_clock::now();
-	const auto dur = duration_cast<milliseconds>(now - beginSearch);
-	if (dur.count() >= movetime and movetime > 0) {
-	    terminateSearch = true;
-	    return standpat;
+	if (movetime > 0) {
+	    const auto now = high_resolution_clock::now();
+	    const auto dur = duration_cast<milliseconds>(now - beginSearch);
+	    if (dur.count() >= movetime) {
+		terminateSearch = true;
+		return alpha;
+	    }
+	}
+	if (qnodes%8*1024 == 0) {
+	    if (listenForStop()) {
+	        terminateSearch = true;
+	        return alpha;
+	    }
 	}
     }
 

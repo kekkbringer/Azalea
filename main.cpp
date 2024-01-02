@@ -62,7 +62,7 @@ int main(int argc, char* argv[]) {
 
 	// eval
 	} else if (command == "eval") {
-	    std::cout << "current eval: " << eval(gs) << std::endl;
+	    eval<true>(gs);
 
 	// legal moves
 	} else if (command == "legalmoves") {
@@ -89,7 +89,7 @@ int main(int argc, char* argv[]) {
 		gs = fen(command.substr(13));
 		//gs = fen(command.substr(13).c_str());
 	    } else {
-			std::cout << "Unknown command: " << command << std::endl;
+		std::cout << "Unknown command: " << command << std::endl;
 	    }
 	    std::size_t found = command.find("moves");
 	    if (found != std::string::npos) {

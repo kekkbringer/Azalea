@@ -26,13 +26,23 @@ using namespace std::chrono;
 */
 void search(GameState& gs, const int depth) {
     terminateSearch = false;
-    movetime *= 0.99; // only use 99% of time allocated to be safe
+    movetime *= 0.97; // only use 99% of time allocated to be safe
 
     beginSearch = high_resolution_clock::now();
 
     std::vector<Move> pvline, oldPV;
     Move bestmove;
 
+    // sometimes the first iteration takes longer than the movetime given, for
+    // this case just return the first legal move generated
+    {
+	std::vector<Move> movelist;
+    	bool inCheck;
+    	generateLegalMoves(gs, movelist, inCheck);
+	bestmove = movelist[0];
+    }
+
+    // set alpha and beta to inf for the first iteration
     int alpha = azalea::MININT;
     int beta  = azalea::MAXINT;
 
@@ -126,9 +136,11 @@ int alphaBeta(GameState& gs, int alpha, int beta, int depth, int ply,
 		return alpha;
 	    }
 	}
-	if (listenForStop()) {
-	    terminateSearch = true;
-	    return alpha;
+	if (nodes%8*1024 == 0) {
+	    if (listenForStop()) {
+	        terminateSearch = true;
+	        return alpha;
+	    }
 	}
     }
 

@@ -14,6 +14,8 @@ function run_test () {
 	((passed=passed+1))
     else
 	echo "   FAILED"
+	echo "   with $2"
+	echo "   expected $3"
 	((failed=failed+1))
 fi
 }
@@ -27,7 +29,7 @@ echo " :: RUNNING SIMPLE 1-2 MOVER"
 quality="movetime 100"
 run_test "simple promotion" "fen 8/6P1/8/8/8/k7/8/K7 w - - 0 1" "g7g8q"
 run_test "simple knight fork" "fen 8/8/k3q3/8/8/3N4/5K2/8 w - - 0 1" "d3c5"
-run_test "simple queen fork" "fen 6r1/8/2k5/3n4/2K3Q1/8/8/8 w - - 0 1" "g4e6"
+run_test "simple queen fork" "fen 5r2/8/1k6/2n5/8/6Q1/1K6/8 w - - 0 1" "g3d6"
 run_test "simple rook capture" "fen 3r4/8/8/2k5/8/8/1K1R4/8 w - - 0 1" "d2d8"
 run_test "simple queen capture" "fen 8/2k5/2q1p3/8/2PR4/2K2R2/8/8 b - - 0 1" "c6f3"
 run_test "simple bishop mate" "fen k5B1/3N4/K7/8/8/8/8/8 w - - 0 1" "g8d5"
