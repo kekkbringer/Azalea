@@ -24,9 +24,9 @@ using namespace std::chrono;
 /******************************************************************************
 * Main iterative deepening search function, calls alphaBeta
 */
-void search(GameState& gs, const int depth) {
+void search(GameState& gs, const int depth, const zobristKeys& zobrist) {
     terminateSearch = false;
-    movetime *= 0.97; // only use 99% of time allocated to be safe
+    movetime *= 0.97; // only use 97% of time allocated to be safe
 
     beginSearch = high_resolution_clock::now();
 
@@ -54,8 +54,8 @@ void search(GameState& gs, const int depth) {
 	qnodes = 0;
 	// call to core search routine
 	pvline.clear();
-    	const int score = alphaBeta(gs, alpha, beta,
-    	    			    idDepth, 0, pvline, bestmove);
+    	const int score = alphaBeta(gs, alpha, beta, idDepth, 0, pvline,
+				    bestmove, zobrist);
 	if (terminateSearch) break;
 	bestmove = pvline[0]; // this is only needed as the search currently
 			      // does not try the bestmove of the previous
@@ -102,30 +102,14 @@ void search(GameState& gs, const int depth) {
     std::cout << "bestmove " << bestmove << std::endl;
 }
 
-/******************************************************************************
- * Benchmark function, calls alphaBeta outside of an ID framework
- */
-void searchNOID(GameState& gs, const int depth) {
-    std::vector<Move> pvline;
-    Move bestmove;
-
-    // call to core search routine
-    const int score = alphaBeta(gs, azalea::MININT, azalea::MAXINT,
-        			depth, 0, pvline, bestmove);
-
-    // print final search info
-    std::cout << "info depth " << depth << " score cp " << score/10 << " pv ";
-    for (const auto& m: pvline) std::cout << m << " ";
-    std::cout << std::endl;
-    std::cout << "bestmove " << pvline[0] << std::endl;
-}  
-
 
 /******************************************************************************
  * Fail-soft alpha beta
  */
 int alphaBeta(GameState& gs, int alpha, int beta, int depth, int ply,
-		std::vector<Move>& pvline, Move& bestmove) {
+		std::vector<Move>& pvline, Move& bestmove,
+	    
+		const zobristKeys& zobrist) {
     nodes++;
     if (nodes%2048 == 0) {
 	if (movetime > 0) {
@@ -156,17 +140,18 @@ int alphaBeta(GameState& gs, int alpha, int beta, int depth, int ply,
 
     if (movelist.size() == 0) {
         if (inCheck) return azalea::MININT + 100 + ply;
-		return 0;
+	return 0;
     }
 
     // enter quiescence search
     if (depth <= 0) {
-		pvline.resize(0);
-		return qsearch(gs, alpha, beta);
+	pvline.resize(0);
+	return qsearch(gs, alpha, beta, zobrist);
     }
 
     if (ply == 0 and depth > 1 and !inCheck) {
-        movelist.erase(std::remove(movelist.begin(), movelist.end(), bestmove), movelist.end());
+        movelist.erase(std::remove(movelist.begin(), movelist.end(), bestmove),
+		       movelist.end());
         movelist.insert(movelist.begin(), bestmove);
     }
 
@@ -174,10 +159,10 @@ int alphaBeta(GameState& gs, int alpha, int beta, int depth, int ply,
     for (const auto& m: movelist) {
 	if (terminateSearch) break;
 
-	auto umi = gs.makeMove(m);
-	int score = -alphaBeta(gs, -beta, -alpha,
-			    depth - 1, ply + 1, line, bestmove);
-	gs.unmakeMove(umi);
+	auto umi = gs.makeMove(m, zobrist);
+	int score = -alphaBeta(gs, -beta, -alpha, depth - 1, ply + 1,
+			       line, bestmove, zobrist);
+	gs.unmakeMove(umi, zobrist);
 
 	if (score > bestscore) {
 	    bestscore = score;

@@ -2,6 +2,7 @@
 
 #include "params.hpp"
 #include "move.hpp"
+#include "zobrist.hpp"
 
 /******************************************************************************
  * This file contains the board representation as well as some auxiliary
@@ -87,8 +88,11 @@ public:
     int halfmoveClock;
     int epTarget;
 
-    UnmakeInfo makeMove(const Move& m);
-    void unmakeMove(UnmakeInfo umi);
+    // zobrist hash of board state
+    uint64_t zhash;
+
+    UnmakeInfo makeMove(const Move& m, const zobristKeys& zobrist);
+    void unmakeMove(UnmakeInfo umi, const zobristKeys& zobrist);
 };
 
 // arrays to keep track of the different diagonals and antidiagonals
@@ -111,5 +115,5 @@ constexpr int antidiags[64] = { 0,  1,  2,  3,  4,  5,  6,  7,
 				7,  8,  9, 10, 11, 12, 13, 14};
 
 // perft function with bulk counting, no div
-unsigned long long int perft(GameState& gs, int depth);
-void perftdiv(const GameState& gs, int depth);
+unsigned long long int perft(GameState& gs, int depth, const zobristKeys& zobrist);
+void perftdiv(const GameState& gs, int depth, const zobristKeys& zobrist);

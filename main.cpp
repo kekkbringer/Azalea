@@ -3,6 +3,7 @@
 #include <vector>
 #include <sstream>
 #include <time.h>
+#include <iomanip>
 
 #include "params.hpp"
 #include "statistics.hpp"
@@ -13,6 +14,7 @@
 #include "util.hpp"
 #include "eval.hpp"
 #include "search.hpp"
+#include "zobrist.hpp"
 
 int movetime; // movetime in ms
 
@@ -26,8 +28,9 @@ int main(int argc, char* argv[]) {
 			<< "by Dominik Steinmetz\n";
 	    return 0;
 	} else if (std::string(argv[1]) == "-t"
-					or std::string(argv[1]) == "--test") {
-		runTests();
+		    or std::string(argv[1]) == "--test") {
+	    //runTests();
+	    std::cout << "no longer supported\n";
 	    return 0;
 	}
     }
@@ -36,6 +39,7 @@ int main(int argc, char* argv[]) {
 		      << azalea::minorVersion << "."
 		      << azalea::patchVersion << " <3\n";
 
+    const zobristKeys zobrist = initZobrist();
 
     // delete old statfile in case of restart
     if constexpr (azalea::statistics) deleteStatfile();
@@ -43,9 +47,11 @@ int main(int argc, char* argv[]) {
     if constexpr (azalea::statistics) dumpBootMsg();
 
     GameState gs
-	= fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+	= fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+		zobrist);
 
     bool inCheck = false;
+    UnmakeInfo umi;
 
     /**************************************************************************
      * interactive UCI section
@@ -60,9 +66,36 @@ int main(int argc, char* argv[]) {
 	if (command == "quit") {
 	    return 0;
 
+	// hash
+	} else if (command == "hash") {
+	    std::cout << "dec: " << gs.zhash << "\n";
+	    std::cout << "hex: " << std::hex << gs.zhash << std::dec << "\n";
+
+	// fen
+	} else if (command == "fen") {
+	    std::cout << "FEN: " <<  toFen(gs) << "\n";
+
 	// eval
 	} else if (command == "eval") {
 	    eval<true>(gs);
+
+	// move
+	} else if (command.substr(0, 5) == "move ") {
+	    std::vector<Move> ml;
+	    generateLegalMoves(gs, ml, inCheck);
+	    std::string mstr = command.substr(5);
+	    bool legal = false;
+	    for (const auto& m: ml) {
+		if (mstr == toString(m)) {
+		    umi = gs.makeMove(m, zobrist);
+		    legal = true;
+		}
+	    }
+	    if (not legal) std::cout << "illegal move!\n";
+
+	// unmake move
+	} else if (command == "unmake") {
+	    gs.unmakeMove(umi, zobrist);
 
 	// legal moves
 	} else if (command == "legalmoves") {
@@ -76,7 +109,8 @@ int main(int argc, char* argv[]) {
 	// uci standard stuff
 	} else if (command == "ucinewgame") {
 	    gs =
-	    fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+	    fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+		    zobrist);
 	} else if (command == "isready") {
 	    std::cout << "readyok" << std::endl;
 
@@ -84,9 +118,9 @@ int main(int argc, char* argv[]) {
 	} else if (command.substr(0, 8) == "position") {
 	    if (command.substr(9, 8) == "startpos") {
 		gs = fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"
-							    " w KQkq - 0 1");
+			    " w KQkq - 0 1", zobrist);
 	    } else if (command.substr(9, 3) == "fen") {
-		gs = fen(command.substr(13));
+		gs = fen(command.substr(13), zobrist);
 		//gs = fen(command.substr(13).c_str());
 	    } else {
 		std::cout << "Unknown command: " << command << std::endl;
@@ -101,30 +135,32 @@ int main(int argc, char* argv[]) {
 		    	std::vector<Move> ml;
 		    	generateLegalMoves(gs, ml, inCheck);
 		    	for (const auto& m: ml) {
-					if (mstring == toString(m)) {
-			    		gs.makeMove(m);
-					}
-		    	}
+				    if (mstring == toString(m)) {
+				    gs.makeMove(m, zobrist);
+				}
+			    }
 			}
 	    }
 
 	// go section
 	} else if (command.substr(0, 2) == "go") {
 	    if (command.substr(3, 5) == "perft") {
-			const int depth
-			    = std::stoi(command.substr(9, command.length()));
-			perftdiv(gs, depth);
+		const int depth
+			= std::stoi(command.substr(9, command.length()));
+		const unsigned long long int n = perft(gs, depth, zobrist);
+		std::cout << "nodes: " << n << "\n";
+		//perftdiv(gs, depth, zobrist);
 	    } else if (command.substr(3, 5) == "depth") {
 		const int depth
 			    = std::stoi(command.substr(9, command.length()));
 		movetime = -1;
-		search(gs, depth);
+		search(gs, depth, zobrist);
 	    } else if (command.substr(3, 9) == "infinite") {
 		movetime = -1;
-		search(gs, azalea::maxDepth);
+		search(gs, azalea::maxDepth, zobrist);
 	    } else if (command.substr(3, 8) == "movetime") {
 		movetime = std::stoi(command.substr(12, command.length()));
-		search(gs, azalea::maxDepth);
+		search(gs, azalea::maxDepth, zobrist);
 	    } else {
 			// just make a random move
 			std::vector<Move> ml;

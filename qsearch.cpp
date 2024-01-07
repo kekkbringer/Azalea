@@ -20,7 +20,7 @@ extern unsigned long long int qnodes;
 /******************************************************************************
  * Quiescence search
  */
-int qsearch(GameState& gs, int alpha, int beta) {
+int qsearch(GameState& gs, int alpha, int beta, const zobristKeys& zobrist) {
     qnodes++;
     int standpat = eval<false>(gs);
 
@@ -56,7 +56,7 @@ int qsearch(GameState& gs, int alpha, int beta) {
 	if (!m.capture and !(m.promo and m.promoPiece=='q')) continue;
 	if (terminateSearch) break;
 
-	auto umi = gs.makeMove(m);
+	auto umi = gs.makeMove(m, zobrist);
 
 	/* delta pruning
     	int delta = 0;
@@ -73,8 +73,8 @@ int qsearch(GameState& gs, int alpha, int beta) {
 	}
     	// end ofdelta pruning */
 
-	int score = -qsearch(gs, -beta, -alpha);
-	gs.unmakeMove(umi);
+	int score = -qsearch(gs, -beta, -alpha, zobrist);
+	gs.unmakeMove(umi, zobrist);
 
 	if (score >= beta) {
 	    return beta;
