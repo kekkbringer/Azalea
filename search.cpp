@@ -162,9 +162,11 @@ int alphaBeta(GameState& gs, int alpha, int beta, int depth, int ply,
     // check for transposition table hit
     const auto probeEntry = tTable[gs.zhash%(ttsize)];
     Move hashmove;
+    bool tthit = false;
     if (gs.zhash == probeEntry.zhash) { // tthit
 	// save transposition table move for move ordering
 	hashmove = probeEntry.bestmove;
+	tthit = true;
 
 	// if not root and tthit is from a deep enough search, return
 	// the score corresponding to the correct node type
@@ -210,11 +212,21 @@ int alphaBeta(GameState& gs, int alpha, int beta, int depth, int ply,
 	return qsearch(gs, alpha, beta, zobrist);
     }
 
-    if (ply == 0 and depth > 1 and !inCheck) {
-        movelist.erase(std::remove(movelist.begin(), movelist.end(), bestmove),
-		       movelist.end());
-        movelist.insert(movelist.begin(), bestmove);
+    // if we have a tthit, check if ttmove is legal, if so -> sort to front
+    if (tthit) {
+	if (std::find(movelist.begin(), movelist.end(), hashmove)
+		    != movelist.end()) {
+	    // for now just insert it to the front, the ttmove is now
+	    // contained twice in the movelist
+	    movelist.insert(movelist.begin(), hashmove);
+	}
     }
+
+    //if (ply == 0 and depth > 1 and !inCheck) {
+    //    movelist.erase(std::remove(movelist.begin(), movelist.end(), bestmove),
+    //    	       movelist.end());
+    //    movelist.insert(movelist.begin(), bestmove);
+    //}
 
     Move ttmove;
 
