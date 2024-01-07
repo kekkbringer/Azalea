@@ -9,6 +9,10 @@ UnmakeInfo GameState::makeMove(const Move& m, const zobristKeys& zobrist) {
     const bitb fromMask = (1ULL << from);
     const bitb toMask = (1ULL << to);
 
+    // add hash to repetition history array
+    this->repHist[this->repPlyCounter] = this->zhash;
+    this->repPlyCounter++;
+
     Board& b = this->board;
 
     // prepare info to unmake move

@@ -21,6 +21,7 @@ namespace azalea {
     constexpr int majorVersion = 0;
     constexpr int minorVersion = 0;
     constexpr int patchVersion = 9;
+    constexpr auto addVersion = 'a';
 
     /**************************************************************************
      * Statistics section
@@ -43,6 +44,7 @@ namespace azalea {
     constexpr int maxDepth = 100;
     constexpr int aspirationWindowSize = 520; // in millipawns
     constexpr int deltaMargin = 2000; // 2 pawns
+    constexpr int repHistMaxPly = 1024;
 
     /**************************************************************************
      * Move generation

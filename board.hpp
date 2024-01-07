@@ -91,6 +91,10 @@ public:
     // zobrist hash of board state
     uint64_t zhash;
 
+    // array of zorist hash to track history for repetition detection
+    uint64_t repHist[azalea::repHistMaxPly];
+    int repPlyCounter = 0;
+
     UnmakeInfo makeMove(const Move& m, const zobristKeys& zobrist);
     void unmakeMove(UnmakeInfo umi, const zobristKeys& zobrist);
 };
@@ -117,3 +121,18 @@ constexpr int antidiags[64] = { 0,  1,  2,  3,  4,  5,  6,  7,
 // perft function with bulk counting, no div
 unsigned long long int perft(GameState& gs, int depth, const zobristKeys& zobrist);
 void perftdiv(const GameState& gs, int depth, const zobristKeys& zobrist);
+
+
+
+// tt test section
+enum class NodeType {
+    AlphaNode, BetaNode, PVNode
+};
+struct TTentry {
+    uint64_t zhash;
+    Move bestmove;
+    int draft = -1;
+    int score;
+    NodeType nodeType;
+};
+// end of tt test section

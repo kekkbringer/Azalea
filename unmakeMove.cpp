@@ -10,6 +10,9 @@ void GameState::unmakeMove(UnmakeInfo umi, const zobristKeys& zobrist) {
     const bitb fromMask = (1ULL << from);
     const bitb toMask = (1ULL << to);
 
+    // decrease repetition history counter
+    this->repPlyCounter--;
+
     Board& b = this-> board;
 
     // if there was an ep target, reset the file

@@ -23,6 +23,7 @@ GameState fen(std::string f, const zobristKeys& zobrist) {
     gs.halfmoveClock = 0;
     gs.epTarget = -1;
     gs.zhash = 0ULL;
+    gs.repPlyCounter = 0;
 
     auto it = f.begin();
 

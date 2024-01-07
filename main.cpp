@@ -16,6 +16,11 @@
 #include "search.hpp"
 #include "zobrist.hpp"
 
+
+// tt test section
+TTentry	tTable[1024*128];
+// end of tt test section
+
 int movetime; // movetime in ms
 
 int main(int argc, char* argv[]) {
@@ -24,7 +29,8 @@ int main(int argc, char* argv[]) {
 				    or std::string(argv[1]) == "--version") {
 	    std::cout << "Azalea " << azalea::majorVersion << "."
 				    << azalea::minorVersion << "."
-				    << azalea::patchVersion << "\n"
+				    << azalea::patchVersion
+				    << azalea::addVersion << "\n"
 			<< "by Dominik Steinmetz\n";
 	    return 0;
 	} else if (std::string(argv[1]) == "-t"
@@ -37,7 +43,8 @@ int main(int argc, char* argv[]) {
 
     std::cout << "Azalea " << azalea::majorVersion << "."
 		      << azalea::minorVersion << "."
-		      << azalea::patchVersion << " <3\n";
+		      << azalea::patchVersion
+		      << azalea::addVersion << " <3\n";
 
     const zobristKeys zobrist = initZobrist();
 
@@ -65,6 +72,18 @@ int main(int argc, char* argv[]) {
 	// quit section
 	if (command == "quit") {
 	    return 0;
+
+	// transposition table entry
+	} else if (command == "ttentry") {
+	    std::cout << "TRANSPOSITION TABLE ENTRY:\n";
+	    const auto entry = tTable[gs.zhash%(1024*128)];
+	    std::cout << "\thash: " << entry.zhash << "\n";
+	    std::cout << "\tbestmove: " << entry.bestmove << "\n";
+	    std::cout << "\tdraft: " << entry.draft << "\n";
+	    std::cout << "\tscore: " << entry.score << "\n";
+	    if (entry.nodeType == NodeType::AlphaNode) std::cout << "\tnode type: alpha node\n";
+	    if (entry.nodeType == NodeType::BetaNode) std::cout << "\tnode type: beta node\n";
+	    if (entry.nodeType == NodeType::PVNode) std::cout << "\tnode type: PV node\n";
 
 	// hash
 	} else if (command == "hash") {
@@ -172,7 +191,8 @@ int main(int argc, char* argv[]) {
 	} else if (command.substr(0, 3) == "uci") {
 	    std::cout << "id name Azalea " << azalea::majorVersion << "."
 					   << azalea::minorVersion << "."
-		      			   << azalea::patchVersion << "\n";
+		      			   << azalea::patchVersion
+					   << azalea::addVersion << "\n";
 	    std::cout << "id author Dominik Steinmetz\n";
 	    std::cout << "uciok\n" << std::flush;
 	} else {

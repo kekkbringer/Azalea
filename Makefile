@@ -11,8 +11,8 @@ CXX = g++
 INCFLAGS ?= -I.
 
 CPPFLAGS ?= $(INCFLAGS) -MMD -MP -O3 -std=c++23 -Wall \
-			-march=native -fopenmp
-LDFLAGS ?= -O3 -fopenmp -lgomp
+			-march=native
+LDFLAGS ?= -O3
 
 # object files for main executable (excluding main itself)
 OBJ_LIST := fen.o util.o statistics.o movegenerator.o makeMove.o perft.o \

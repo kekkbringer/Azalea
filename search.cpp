@@ -13,10 +13,10 @@
 #include <iostream> // TODO delete
 #include "util.hpp" // TODO delete
 
-
 unsigned long long int nodes, qnodes;
 std::chrono::high_resolution_clock::time_point beginSearch;
 extern int movetime;
+extern TTentry tTable[1024*128];
 bool terminateSearch;
 
 using namespace std::chrono;
@@ -92,9 +92,30 @@ void search(GameState& gs, const int depth, const zobristKeys& zobrist) {
 	std::cout << " nodes " << nodes << " qnodes " << qnodes;
 	std::cout<< " time " << ms << " nps " << (nodes*1000)/ms;
 
-	// print principle variation
+	// print out how full the transposition table is in permill
+	unsigned int full = 0;
+	for (int i=0; i<1024*128; i++) {
+	    if (tTable[i].draft != -1) full++;
+	}
+	std::cout << " hashfull " << (int)(full*1000/(1024*128));
+
+	//// print principle variation
+	//std::cout << "pv ";
+    	//for (const auto& m: pvline) std::cout << m << " ";
+
+	// debug: print PV from transposition table
 	std::cout << " pv ";
-    	for (const auto& m: pvline) std::cout << m << " ";
+	std::cout << tTable[gs.zhash%(1024*128)].bestmove << " ";
+	auto gscopy = gs;
+	gscopy.makeMove(tTable[gs.zhash%(1024*128)].bestmove, zobrist);
+	while (true) {
+	    const auto entry = tTable[gscopy.zhash%(1024*128)];
+	    if (entry.zhash != gscopy.zhash) break;
+	    if (entry.nodeType != NodeType::PVNode) break;
+	    std::cout << entry.bestmove << " ";
+	    gscopy.makeMove(entry.bestmove, zobrist);
+	}
+
     	std::cout << std::endl;
     }
 
@@ -108,7 +129,6 @@ void search(GameState& gs, const int depth, const zobristKeys& zobrist) {
  */
 int alphaBeta(GameState& gs, int alpha, int beta, int depth, int ply,
 		std::vector<Move>& pvline, Move& bestmove,
-	    
 		const zobristKeys& zobrist) {
     nodes++;
     if (nodes%2048 == 0) {
@@ -128,8 +148,18 @@ int alphaBeta(GameState& gs, int alpha, int beta, int depth, int ply,
 	}
     }
 
+    // check for 3 fold repetition
+    // here actually the first repetition will already be resulting in a
+    // draw evaluation
+    int repetitions = 0;
+    for (int i=gs.repPlyCounter-2; i>=0 and i<azalea::repHistMaxPly; i--) {
+	if (gs.repHist[i] == gs.zhash) repetitions++;
+	if (repetitions == 2) return 0;
+    }
+
     int bestscore = azalea::MININT;
     std::vector<Move> line;
+    NodeType ttNode = NodeType::AlphaNode;
 
     std::vector<Move> movelist;
     bool inCheck;
@@ -155,6 +185,8 @@ int alphaBeta(GameState& gs, int alpha, int beta, int depth, int ply,
         movelist.insert(movelist.begin(), bestmove);
     }
 
+    Move ttmove;
+
     // iterate over legal moves
     for (const auto& m: movelist) {
 	if (terminateSearch) break;
@@ -166,15 +198,18 @@ int alphaBeta(GameState& gs, int alpha, int beta, int depth, int ply,
 
 	if (score > bestscore) {
 	    bestscore = score;
+	    ttmove = m;
 	}
 
 	// beta cutoff
 	if (score >= beta) {
+	    ttNode = NodeType::BetaNode;
 	    break;
 	}
 
 	// raising alpha?
 	if (score > alpha) {
+	    ttNode = NodeType::PVNode;
 	    alpha = score;
 	    pvline.clear();
 	    pvline.push_back(m);
@@ -184,6 +219,15 @@ int alphaBeta(GameState& gs, int alpha, int beta, int depth, int ply,
 	// clear line for next search iteration
 	line.clear();
     }
+
+    // store search info in transposition table
+    TTentry entry;
+    entry.zhash = gs.zhash;
+    entry.bestmove = ttmove;
+    entry.draft = depth;
+    entry.score = bestscore;
+    entry.nodeType = ttNode;
+    tTable[gs.zhash%(1024*128)] = entry;
 
     return bestscore;
 }
