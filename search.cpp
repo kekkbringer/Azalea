@@ -13,7 +13,7 @@
 #include <iostream> // TODO delete
 #include "util.hpp" // TODO delete
 
-unsigned long long int nodes, qnodes;
+unsigned long long int nodes, qnodes, tthits;
 std::chrono::high_resolution_clock::time_point beginSearch;
 extern int movetime;
 extern TTentry tTable[ttsize];
@@ -52,6 +52,7 @@ void search(GameState& gs, const int depth, const zobristKeys& zobrist) {
 
 	nodes = 0;
 	qnodes = 0;
+	tthits = 0;
 	// call to core search routine
 	pvline.clear();
     	const int score = alphaBeta(gs, alpha, beta, idDepth, 0, pvline,
@@ -91,6 +92,7 @@ void search(GameState& gs, const int depth, const zobristKeys& zobrist) {
 	const int ms = 1 + duration.count(); // millisecs, rounded up
 	std::cout << " nodes " << nodes << " qnodes " << qnodes;
 	std::cout<< " time " << ms << " nps " << (nodes*1000)/ms;
+	std::cout << " tthits " << tthits;
 
 	// print out how full the transposition table is in permill
 	unsigned int full = 0;
@@ -155,6 +157,35 @@ int alphaBeta(GameState& gs, int alpha, int beta, int depth, int ply,
     for (int i=gs.repPlyCounter-2; i>=0 and i<azalea::repHistMaxPly; i--) {
 	if (gs.repHist[i] == gs.zhash) repetitions++;
 	if (repetitions == 2) return 0;
+    }
+
+    // check for transposition table hit
+    const auto probeEntry = tTable[gs.zhash%(ttsize)];
+    Move hashmove;
+    if (gs.zhash == probeEntry.zhash) { // tthit
+	// save transposition table move for move ordering
+	hashmove = probeEntry.bestmove;
+
+	// if not root and tthit is from a deep enough search, return
+	// the score corresponding to the correct node type
+	if (ply > 0) {
+	    if (probeEntry.draft >= depth) { // deep enough
+		if (probeEntry.nodeType == NodeType::PVNode) {
+		    tthits++;
+		    return probeEntry.score;
+		}
+		if (probeEntry.nodeType == NodeType::AlphaNode
+			and probeEntry.score <= alpha) {
+		    tthits++;
+		    return alpha;
+		}
+		if (probeEntry.nodeType == NodeType::BetaNode
+			and probeEntry.score >= beta) {
+		    tthits++;
+		    return beta;
+		}
+	    }
+	}
     }
 
     int bestscore = azalea::MININT;
