@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <limits>
+#include <cstddef>
 
 typedef uint64_t bitb;
 
@@ -53,3 +54,5 @@ namespace azalea {
      */
     constexpr int maxMoves = 218;
 }
+
+constexpr size_t ttsize = 1024*1024;

@@ -18,7 +18,7 @@
 
 
 // tt test section
-TTentry	tTable[1024*128];
+TTentry	tTable[ttsize];
 // end of tt test section
 
 int movetime; // movetime in ms
@@ -45,6 +45,9 @@ int main(int argc, char* argv[]) {
 		      << azalea::minorVersion << "."
 		      << azalea::patchVersion
 		      << azalea::addVersion << " <3\n";
+    // TO BE DELETED
+    std::cout << "current size of transposition table: "
+	<< (ttsize*sizeof(TTentry)/1000/1000) << " MB\n";
 
     const zobristKeys zobrist = initZobrist();
 
@@ -76,7 +79,7 @@ int main(int argc, char* argv[]) {
 	// transposition table entry
 	} else if (command == "ttentry") {
 	    std::cout << "TRANSPOSITION TABLE ENTRY:\n";
-	    const auto entry = tTable[gs.zhash%(1024*128)];
+	    const auto entry = tTable[gs.zhash%(ttsize)];
 	    std::cout << "\thash: " << entry.zhash << "\n";
 	    std::cout << "\tbestmove: " << entry.bestmove << "\n";
 	    std::cout << "\tdraft: " << entry.draft << "\n";

@@ -16,7 +16,7 @@
 unsigned long long int nodes, qnodes;
 std::chrono::high_resolution_clock::time_point beginSearch;
 extern int movetime;
-extern TTentry tTable[1024*128];
+extern TTentry tTable[ttsize];
 bool terminateSearch;
 
 using namespace std::chrono;
@@ -94,10 +94,10 @@ void search(GameState& gs, const int depth, const zobristKeys& zobrist) {
 
 	// print out how full the transposition table is in permill
 	unsigned int full = 0;
-	for (int i=0; i<1024*128; i++) {
+	for (size_t i=0; i<ttsize; i++) {
 	    if (tTable[i].draft != -1) full++;
 	}
-	std::cout << " hashfull " << (int)(full*1000/(1024*128));
+	std::cout << " hashfull " << (int)(full*1000/(ttsize));
 
 	//// print principle variation
 	//std::cout << "pv ";
@@ -105,11 +105,11 @@ void search(GameState& gs, const int depth, const zobristKeys& zobrist) {
 
 	// debug: print PV from transposition table
 	std::cout << " pv ";
-	std::cout << tTable[gs.zhash%(1024*128)].bestmove << " ";
+	std::cout << tTable[gs.zhash%(ttsize)].bestmove << " ";
 	auto gscopy = gs;
-	gscopy.makeMove(tTable[gs.zhash%(1024*128)].bestmove, zobrist);
-	while (true) {
-	    const auto entry = tTable[gscopy.zhash%(1024*128)];
+	gscopy.makeMove(tTable[gs.zhash%(ttsize)].bestmove, zobrist);
+	for (int i=0; i<depth+5; i++) {
+	    const auto entry = tTable[gscopy.zhash%(ttsize)];
 	    if (entry.zhash != gscopy.zhash) break;
 	    if (entry.nodeType != NodeType::PVNode) break;
 	    std::cout << entry.bestmove << " ";
@@ -227,7 +227,7 @@ int alphaBeta(GameState& gs, int alpha, int beta, int depth, int ply,
     entry.draft = depth;
     entry.score = bestscore;
     entry.nodeType = ttNode;
-    tTable[gs.zhash%(1024*128)] = entry;
+    tTable[gs.zhash%(ttsize)] = entry;
 
     return bestscore;
 }
