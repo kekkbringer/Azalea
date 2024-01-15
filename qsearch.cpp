@@ -1,4 +1,4 @@
-#include "search.hpp"
+#include "pvssearch.hpp"
 
 #include <chrono>
 
@@ -8,14 +8,15 @@
 #include "params.hpp"
 #include "eval.hpp"
 #include "util.hpp"
+#include "statistics.hpp"
 
 using namespace std::chrono;
 
 extern int movetime;
-extern high_resolution_clock::time_point beginSearch;
 extern bool terminateSearch;
 extern unsigned long long int qnodes;
 
+constexpr int INF = std::numeric_limits<int>::max()-1;
 
 /******************************************************************************
  * Quiescence search
@@ -26,17 +27,17 @@ int qsearch(GameState& gs, int alpha, int beta, const zobristKeys& zobrist) {
 
     if (qnodes%2048 == 0) {
 	if (movetime > 0) {
-	    const auto now = high_resolution_clock::now();
-	    const auto dur = duration_cast<milliseconds>(now - beginSearch);
-	    if (dur.count() >= movetime) {
+	    if (measureTimeSinceStart() >= movetime) {
+		if constexpr (azalea::statistics)
+		    outputStats("time termination in qsearch loop\n");
 		terminateSearch = true;
-		return alpha;
+		return 0;
 	    }
 	}
 	if (qnodes%8*1024 == 0) {
 	    if (listenForStop()) {
 	        terminateSearch = true;
-	        return alpha;
+	        return 0;
 	    }
 	}
     }
@@ -68,10 +69,10 @@ int qsearch(GameState& gs, int alpha, int beta, const zobristKeys& zobrist) {
 	    case pieceType::queen: delta = 9000; break;
 	}
 	if (standpat+delta+azalea::deltaMargin < alpha and !umi.promotion) {
-	    gs.unmakeMove(umi);
+	    gs.unmakeMove(umi, zobrist);
 	    continue;
 	}
-    	// end ofdelta pruning */
+    	// end of delta pruning */
 
 	int score = -qsearch(gs, -beta, -alpha, zobrist);
 	gs.unmakeMove(umi, zobrist);

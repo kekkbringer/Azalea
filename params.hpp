@@ -19,10 +19,10 @@ namespace azalea {
     /**************************************************************************
      * Version section
      */
-    constexpr int majorVersion = 0;
+    constexpr int majorVersion = 1;
     constexpr int minorVersion = 0;
-    constexpr int patchVersion = 9;
-    constexpr auto addVersion = 'a';
+    constexpr int patchVersion = 0;
+    constexpr auto addVersion = "";
 
     /**************************************************************************
      * Statistics section
@@ -31,13 +31,14 @@ namespace azalea {
      * statfile   - file name for statistics
      */
     constexpr bool statistics = true;
-    constexpr auto statfile = "stats.aza";
+    constexpr auto statfile = "stats100.aza";
 
     /**************************************************************************
      * Integer constants
      */
-    constexpr int MININT = std::numeric_limits<int>::min() + 1;
-    constexpr int MAXINT = std::numeric_limits<int>::max() - 1;
+    constexpr int MININT = std::numeric_limits<int>::min() + 50;
+    constexpr int MAXINT = std::numeric_limits<int>::max() - 50;
+    constexpr int CHECKMATE = -1'000'000;
 
     /**************************************************************************
      * Search parameter
@@ -55,4 +56,4 @@ namespace azalea {
     constexpr int maxMoves = 218;
 }
 
-constexpr size_t ttsize = 1024*1024;
+constexpr size_t ttsize = 1024*1024*4;

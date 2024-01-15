@@ -16,7 +16,6 @@ void search(GameState& gs, const int depth, const zobristKeys& zobrist);
  * Fail-soft alpha beta
  */
 int alphaBeta(GameState& gs, int alpha, int beta, int depth, int ply,
-		    std::vector<Move>& pvline, Move& bestmove,
 		    const zobristKeys& zobrist);
 
 /******************************************************************************

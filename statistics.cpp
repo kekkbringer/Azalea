@@ -32,7 +32,8 @@ void outputStats(const std::string text) {
  */
 void dumpBootMsg() {
     std::ofstream file;
-    file.open(azalea::statfile, std::ios_base::app);
+    //file.open(azalea::statfile, std::ios_base::app);
+    file.open(azalea::statfile);
     file << "booting Azalea " << azalea::majorVersion << "."
 		      << azalea::minorVersion << "."
 		      << azalea::patchVersion << " <3\n";

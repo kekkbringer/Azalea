@@ -66,6 +66,21 @@ bool listenForStop() {
 	std::string command;
 	std::getline(std::cin, command);
 	if (command == "stop") return true;
+	if (command == "isready") std::cout << "readyok" << std::endl;
     }
     return false;
+}
+
+/******************************************************************************
+ * Returns the score in cp or the mate score.
+ */
+std::string scoreOrMate(const int score) {
+    std::string res = "";
+    if (score >= -azalea::CHECKMATE - 100) {
+	return "mate " + std::to_string((-score - azalea::CHECKMATE + 1)/2);
+    }
+    if (score <= azalea::CHECKMATE + 100) {
+	return "mate -" + std::to_string((score - azalea::CHECKMATE + 1)/2);
+    }
+    return "cp " + std::to_string(score/10);
 }

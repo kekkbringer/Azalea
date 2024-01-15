@@ -13,15 +13,17 @@
 #include "movegenerator.hpp"
 #include "util.hpp"
 #include "eval.hpp"
-#include "search.hpp"
+#include "pvssearch.hpp"
 #include "zobrist.hpp"
 
+using namespace std::chrono;
 
 // tt test section
 TTentry	tTable[ttsize];
 // end of tt test section
 
 int movetime; // movetime in ms
+high_resolution_clock::time_point start;
 
 int main(int argc, char* argv[]) {
     if (argc > 1) {
@@ -182,6 +184,9 @@ int main(int argc, char* argv[]) {
 		search(gs, azalea::maxDepth, zobrist);
 	    } else if (command.substr(3, 8) == "movetime") {
 		movetime = std::stoi(command.substr(12, command.length()));
+		if constexpr (azalea::statistics)
+		    outputStats("got 'go movetime " + std::to_string(movetime)
+								    + "'\n");
 		search(gs, azalea::maxDepth, zobrist);
 	    } else {
 			// just make a random move

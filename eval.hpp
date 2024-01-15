@@ -27,7 +27,7 @@ constexpr int startPhase = 16 * pawnPhase
 			  + 4 * rookPhase
 			  + 2 * queenPhase;
 
-constexpr int pawnSq[64] = {   0,    0,    0,    0,    0,    0,    0,    0,
+constexpr int earlyPawnSq[64] = {   0,    0,    0,    0,    0,    0,    0,    0,
 			     300,  300,  300, -200, -200,  -50,  -50,  -50,
 			      10,   10, -200,  -10,  -10,   10,    0,    0,
 			       8,    2,    3,  300,  300,   50,   15,   15,
@@ -35,6 +35,15 @@ constexpr int pawnSq[64] = {   0,    0,    0,    0,    0,    0,    0,    0,
 			      10,   10,   10,   10,   10,   10,   10,   10,
 			     550,  500,  500,  600,  600,  500,  550,  600,
 			       0,    0,    0,    0,    0,    0,    0,    0};
+
+constexpr int latePawnSq[64] = {  0,    0,    0,    0,    0,    0,    0,    0,
+			       1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000,
+			        800,  800,  800,  800,  800,  800,  800,  800,
+			        600,  600,  600,  600,  600,  600,  600,  600,
+			        400,  400,  400,  400,  400,  400,  400,  400,
+			        200,  200,  200,  200,  200,  200,  200,  200,
+			        100,  100,  100,  100,  100,  100,  100,  100,
+				  0,    0,    0,    0,    0,    0,    0,    0};
 
 constexpr int knightSq[64] = {-1000, -200, -120, -100, -100, -120, -200,-1000,
 			       -500, -100,    0,    0,    0,    0, -100, -500,
@@ -92,7 +101,7 @@ constexpr int lateQueenSq[64] = {    0,    0,   30,   50,   50,   30,   0,   0,
 
 template <bool lprint>
 int eval(const GameState& gs) {
-    int earlyEval = 20; // start with small bonus for the tempo you have
+    int earlyEval = 100; // start with small bonus for the tempo you have
     int lateEval = 0;
 
     int earlyMatEval = 0;
@@ -139,14 +148,14 @@ int eval(const GameState& gs) {
     bitb wp = b.wPawns;
     while (wp) {
 	const int index = BSF(wp); wp &= wp - 1;
-	earlyPosEval += pawnSq[index];
-	latePosEval += pawnSq[index];
+	earlyPosEval += earlyPawnSq[index];
+	latePosEval += latePawnSq[index];
     }
     bitb bp = b.bPawns;
     while (bp) {
 	const int index = BSF(bp); bp &= bp - 1;
-	earlyPosEval -= pawnSq[index^56];
-	latePosEval -= pawnSq[index^56];
+	earlyPosEval -= earlyPawnSq[index^56];
+	latePosEval -= latePawnSq[index^56];
     }
 
     // square specific knight value

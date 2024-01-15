@@ -49,3 +49,8 @@ bool listenForStop();
  * benchmarking.
 */
 //void runTests();
+
+/******************************************************************************
+ * Returns the score in cp or the mate score.
+ */
+std::string scoreOrMate(const int score);
