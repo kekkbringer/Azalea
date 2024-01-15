@@ -123,7 +123,6 @@ void search(GameState& gs, const int depth, const zobristKeys& zobrist) {
 	const auto searchTime = measureTimeSinceStart();
 
 	output += " depth " + std::to_string(curDepth)
-		//+ " score " + std::to_string(score/10) + " cp"
 		+ " score " + scoreOrMate(score)
 		+ " nodes " + std::to_string(nodes)
 		+ " qnodes " + std::to_string(qnodes)
@@ -208,12 +207,43 @@ int searchRoot(GameState& gs, int alpha, int beta,
     int bestscore = -INF;
     NodeType ttNode = NodeType::AlphaNode;
 
+
+    // ================== PVS first move ==================
+    const auto umi = gs.makeMove(movelist[0], zobrist);
+    int score = -alphaBeta(gs, -beta, -alpha, curDepth-1, 1, zobrist);
+    gs.unmakeMove(umi, zobrist);
+
+    bestscore = score;
+    bestmove = movelist[0];
+
+    // beta cutoff
+    if (score >= beta) {
+	ttNode = NodeType::BetaNode;
+	goto saveTTAndReturn;
+    }
+
+    // raising alpha
+    if (score > alpha) {
+	ttNode = NodeType::PVNode;
+	alpha = score;
+    }
+    // ================== end of PVS first move ==================
+
+
     // iterate over legal moves
-    //for (const auto& m: movelist) {
-    for (auto m: movelist) {
+    for (size_t n=1; n<movelist.size(); n++) {
+	const auto& m = movelist[n];
+
 	const auto umi = gs.makeMove(m, zobrist);
-	const int score = -alphaBeta(gs, -beta, -alpha,
-				     curDepth-1, 1, zobrist);
+	int score = -alphaBeta(gs, -alpha-1, -alpha, curDepth-1, 1, zobrist);
+	if (score > alpha and score < beta) {
+	    // research needed, use full window
+	    score = -alphaBeta(gs, -beta, -alpha, curDepth-1, 1, zobrist);
+	    if (score > alpha) {
+		ttNode = NodeType::PVNode;
+		alpha = score;
+	    }
+	}
 	gs.unmakeMove(umi, zobrist);
 
 	if (terminateSearch) break;
@@ -237,6 +267,7 @@ int searchRoot(GameState& gs, int alpha, int beta,
     }
 
     // store search info in transposition table
+saveTTAndReturn:
     if (not terminateSearch) {
 	TTentry entry;
 	entry.zhash = gs.zhash;
@@ -332,13 +363,45 @@ int alphaBeta(GameState& gs, int alpha, int beta, int curDepth,
         }
     }
 
-    // iterate over legal moves
-    for (const auto& m: movelist) {
+
+    // ================== PVS first move ==================
+    const auto umi = gs.makeMove(movelist[0], zobrist);
+    const int score = -alphaBeta(gs, -beta, -alpha, curDepth-1, ply+1, zobrist);
+    gs.unmakeMove(umi, zobrist);
+
+    bestscore = score;
+    bestmove = movelist[0];
+
+    // beta cutoff
+    if (score >= beta) {
+	ttNode = NodeType::BetaNode;
+	goto saveTTAndReturn;
+    }
+
+    // raising alpha
+    if (score > alpha) {
+	ttNode = NodeType::PVNode;
+	alpha = score;
+    }
+    // ================== end of PVS first move ==================
+
+
+    // iterate over remaining legal moves
+    for (size_t n=1; n<movelist.size(); n++) {
+	const auto& m = movelist[n];
 	if (terminateSearch) break;
 
 	const auto umi = gs.makeMove(m, zobrist);
-	const int score = -alphaBeta(gs, -beta, -alpha,
-				     curDepth-1, ply+1, zobrist);
+	int score = -alphaBeta(gs, -alpha-1, -alpha,
+			       curDepth-1, ply+1, zobrist);
+	if (score > alpha and score < beta) {
+	    // research needed, use full window
+	    score = -alphaBeta(gs, -beta, -alpha, curDepth-1, ply+1, zobrist);
+	    if (score > alpha) {
+		ttNode = NodeType::PVNode;
+		alpha = score;
+	    }
+	}
 	gs.unmakeMove(umi, zobrist);
 
 	if (score > bestscore) {
@@ -360,6 +423,7 @@ int alphaBeta(GameState& gs, int alpha, int beta, int curDepth,
     }
 
     // store search info in transposition table
+saveTTAndReturn:
     if (not terminateSearch) {
 	TTentry entry;
 	entry.zhash = gs.zhash;
