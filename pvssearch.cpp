@@ -29,11 +29,94 @@ int alphaBeta(GameState& gs, int beta, int alpha, int curDepth,
 // checks for three-fold repetition
 bool checkThreeFoldRep(const GameState& gs) {
     int repetitions = 0;
-    for (int i=gs.repPlyCounter-2; i>=0 and i<azalea::repHistMaxPly; i--) {
-	if (gs.repHist[i] == gs.zhash) repetitions++;
-	if (repetitions == 2) return true;
+    for (int i=gs.repPlyCounter-2; i>=0 and i<azalea::repHistMaxPly; i-=2) {
+        if (gs.repHist[i] == gs.zhash) repetitions++;
+	if (repetitions == 2) {
+	    return true;
+	}
     }
     return false;
+}
+
+// scores the moves given in the movelist
+constexpr int HASHSCORE = std::numeric_limits<int>::max();
+std::vector<int> scoreMoves(const GameState& gs, const std::vector<Move>& ml, const Move& hashmove) {
+    const auto& b = gs.board;
+    std::vector<int> scores;
+    for (const auto& m: ml) {
+	if (m == hashmove) {
+	    scores.push_back(HASHSCORE);
+	    continue;
+	}
+	const auto fromMask = (1ULL << m.from);
+	const auto toMask = (1ULL << m.to);
+	if (m.capture and m.promo) {
+	    int score = 100000 - 100;
+	    if (m.promoPiece == 'q') { score += 900;
+	    } else if (m.promoPiece == 'r') { score += 500;
+	    } else if (m.promoPiece == 'b') { score += 325;
+	    } else if (m.promoPiece == 'n') { score += 300;
+	    }
+	    if (toMask & (b.wPawns | b.bPawns)) { score += 100;
+	    } else if (toMask & (b.wKnights | b.bKnights)) { score += 300;
+	    } else if (toMask & (b.wBishops | b.bBishops)) { score += 325;
+	    } else if (toMask & (b.wRooks | b.bRooks)) { score += 500;
+	    } else if (toMask & (b.wQueens | b.bQueens)) { score += 900;
+	    }
+	    scores.push_back(score);
+	} else if (m.capture) {
+	    int score = 100000;
+	    if (fromMask & (b.wPawns | b.bPawns)) { score -= 100;
+	    } else if (fromMask & (b.wKnights | b.bKnights)) { score -= 300;
+	    } else if (fromMask & (b.wBishops | b.bBishops)) { score -= 325;
+	    } else if (fromMask & (b.wRooks | b.bRooks)) { score -= 500;
+	    } else if (fromMask & (b.wQueens | b.bQueens)) { score -= 900;
+	    } else if (fromMask & (b.wKing | b.bKing)) { score -= 1000;
+	    }
+	    if (toMask & (b.wPawns | b.bPawns)) { score += 100;
+	    } else if (toMask & (b.wKnights | b.bKnights)) { score += 300;
+	    } else if (toMask & (b.wBishops | b.bBishops)) { score += 325;
+	    } else if (toMask & (b.wRooks | b.bRooks)) { score += 500;
+	    } else if (toMask & (b.wQueens | b.bQueens)) { score += 900;
+	    }
+	    scores.push_back(score);
+	} else if (m.promo) {
+	    int score = 100000;
+	    if (m.promoPiece == 'q') { score += 900;
+	    } else if (m.promoPiece == 'r') { score += 500;
+	    } else if (m.promoPiece == 'b') { score += 325;
+	    } else if (m.promoPiece == 'n') { score += 300;
+	    }
+	    scores.push_back(score);
+	} else {
+	    scores.push_back(0);
+	}
+    }
+    return scores;
+}
+
+// insertion sort that sort up to a certain move
+void sortMove(std::vector<Move>& ml, std::vector<int>& scores, const int& n) {
+    // the first n moves are already
+    // take first unsorted move a initial bestscore
+    int bestscore = scores[n];
+    int bestindex = n;
+
+    // look for best move in unordered part
+    for (size_t i=n; i<ml.size(); i++) {
+	if (scores[i] > bestscore) {
+	    bestindex = i;
+	    bestscore = scores[i];
+	}
+    }
+
+    // swap moves
+    const auto m = ml[bestindex];
+    ml[n] = ml[bestindex];
+    ml[bestindex] = m;
+    // swap scores
+    scores[bestindex] = scores[n];
+    scores[n] = bestscore;
 }
 
 /******************************************************************************
@@ -208,6 +291,10 @@ int searchRoot(GameState& gs, int alpha, int beta,
     NodeType ttNode = NodeType::AlphaNode;
 
 
+    // move ordering
+    auto scores = scoreMoves(gs, movelist, bestmove);
+    sortMove(movelist, scores, 0);
+
     // ================== PVS first move ==================
     const auto umi = gs.makeMove(movelist[0], zobrist);
     int score = -alphaBeta(gs, -beta, -alpha, curDepth-1, 1, zobrist);
@@ -232,6 +319,7 @@ int searchRoot(GameState& gs, int alpha, int beta,
 
     // iterate over legal moves
     for (size_t n=1; n<movelist.size(); n++) {
+	sortMove(movelist, scores, n);
 	const auto& m = movelist[n];
 
 	const auto umi = gs.makeMove(m, zobrist);
@@ -363,6 +451,9 @@ int alphaBeta(GameState& gs, int alpha, int beta, int curDepth,
         }
     }
 
+    // move ordering
+    auto scores = scoreMoves(gs, movelist, hashmove);
+    sortMove(movelist, scores, 0);
 
     // ================== PVS first move ==================
     const auto umi = gs.makeMove(movelist[0], zobrist);
@@ -388,6 +479,7 @@ int alphaBeta(GameState& gs, int alpha, int beta, int curDepth,
 
     // iterate over remaining legal moves
     for (size_t n=1; n<movelist.size(); n++) {
+	sortMove(movelist, scores, n);
 	const auto& m = movelist[n];
 	if (terminateSearch) break;
 

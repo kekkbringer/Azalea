@@ -21,7 +21,7 @@ namespace azalea {
      */
     constexpr int majorVersion = 1;
     constexpr int minorVersion = 0;
-    constexpr int patchVersion = 0;
+    constexpr int patchVersion = 1;
     constexpr auto addVersion = "";
 
     /**************************************************************************

@@ -128,11 +128,12 @@ void perftdiv(const GameState& gs, int depth, const zobristKeys& zobrist);
 enum class NodeType {
     AlphaNode, BetaNode, PVNode
 };
+
 struct TTentry {
-    uint64_t zhash;
     Move bestmove;
     int draft = -1;
     int score;
     NodeType nodeType;
+    uint64_t zhash;
 };
 // end of tt test section

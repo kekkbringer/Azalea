@@ -18,6 +18,9 @@ extern unsigned long long int qnodes;
 
 constexpr int INF = std::numeric_limits<int>::max()-1;
 
+std::vector<int> scoreMoves(const GameState& gs, const std::vector<Move>& ml, const Move& hashmove);
+void sortMove(std::vector<Move>& ml, std::vector<int>& scores, const int& n);
+
 /******************************************************************************
  * Quiescence search
  */
@@ -52,8 +55,14 @@ int qsearch(GameState& gs, int alpha, int beta, const zobristKeys& zobrist) {
     std::vector<Move> movelist;
     bool inCheck;
     generateLegalMoves(gs, movelist, inCheck);
+
+    // move ordering
+    const Move dummove;
+    auto scores = scoreMoves(gs, movelist, dummove);
     
-    for (const auto& m: movelist) {
+    for (size_t n=0; n<movelist.size(); n++) {
+	sortMove(movelist, scores, n);
+	const auto& m = movelist[n];
 	if (!m.capture and !(m.promo and m.promoPiece=='q')) continue;
 	if (terminateSearch) break;
 
