@@ -225,7 +225,6 @@ int eval(const GameState& gs) {
 
     const int val = (phase * earlyEval)/startPhase
 		+ ((startPhase - phase) * lateEval)/startPhase;
-
     if (lprint) {
         std::cout << " :: EVALUATION BREAKDOWN\n";
         std::cout << "early phase weight: "

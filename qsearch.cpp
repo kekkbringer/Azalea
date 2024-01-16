@@ -37,7 +37,7 @@ int qsearch(GameState& gs, int alpha, int beta, const zobristKeys& zobrist) {
 		return 0;
 	    }
 	}
-	if (qnodes%8*1024 == 0) {
+	if (qnodes%(8*1024) == 0) {
 	    if (listenForStop()) {
 	        terminateSearch = true;
 	        return 0;
@@ -64,8 +64,6 @@ int qsearch(GameState& gs, int alpha, int beta, const zobristKeys& zobrist) {
 	sortMove(movelist, scores, n);
 	const auto& m = movelist[n];
 	if (!m.capture and !(m.promo and m.promoPiece=='q')) continue;
-	if (terminateSearch) break;
-
 	auto umi = gs.makeMove(m, zobrist);
 
 	/* delta pruning
@@ -85,6 +83,8 @@ int qsearch(GameState& gs, int alpha, int beta, const zobristKeys& zobrist) {
 
 	int score = -qsearch(gs, -beta, -alpha, zobrist);
 	gs.unmakeMove(umi, zobrist);
+
+	if (terminateSearch) break;
 
 	if (score >= beta) {
 	    return beta;

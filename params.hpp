@@ -20,9 +20,9 @@ namespace azalea {
      * Version section
      */
     constexpr int majorVersion = 1;
-    constexpr int minorVersion = 0;
-    constexpr int patchVersion = 1;
-    constexpr auto addVersion = "";
+    constexpr int minorVersion = 1;
+    constexpr int patchVersion = 0;
+    constexpr auto addVersion = "a";
 
     /**************************************************************************
      * Statistics section
@@ -31,7 +31,7 @@ namespace azalea {
      * statfile   - file name for statistics
      */
     constexpr bool statistics = true;
-    constexpr auto statfile = "stats100.aza";
+    constexpr auto statfile = "stats1.1.0a.aza";
 
     /**************************************************************************
      * Integer constants
