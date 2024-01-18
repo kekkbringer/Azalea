@@ -3,17 +3,24 @@
 
 #include <iostream>
 
-constexpr int earlyValPawn   = 1000;
-constexpr int earlyValKnight = 3000;
-constexpr int earlyValBishop = 3250;
-constexpr int earlyValRook   = 5000;
-constexpr int earlyValQueen  = 9000;
+constexpr double F = 0.05;
+// Score of Azalea 1.1.0A vs Azalea 1.1.0B: 342 - 443 - 201  [0.449] 986
+// Score of Azalea 1.1.0a vs Azalea 1.1.0tuned: 372 - 404 - 210  [0.484] 986
+//
+// Score of Azalea 1.1.0A vs Azalea 1.1.0B: 395 - 376 - 215  [0.510] 986
+//
 
-constexpr int lateValPawn   = 1300;
-constexpr int lateValKnight = 2650;
-constexpr int lateValBishop = 3100;
-constexpr int lateValRook   = 6000;
-constexpr int lateValQueen  = 9000;
+constexpr int earlyValPawn   = 1000 - 124*F + 28*F;
+constexpr int earlyValKnight = 3000 +   4*F +  5*F;
+constexpr int earlyValBishop = 3250 +  90*F + 15*F;
+constexpr int earlyValRook   = 5000 + 100*F - 20*F;
+constexpr int earlyValQueen  = 9000 +  89*F - 15*F;
+
+constexpr int lateValPawn   = 1300 -  54*F + 13*F;
+constexpr int lateValKnight = 2650 + 116*F - 23*F;
+constexpr int lateValBishop = 3100 -  58*F +  8*F;
+constexpr int lateValRook   = 6000 +  96*F + 51*F;
+constexpr int lateValQueen  = 9000 -   8*F + 19*F;
 
 constexpr int pawnPhase   = 0;
 constexpr int knightPhase = 200;

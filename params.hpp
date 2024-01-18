@@ -22,7 +22,7 @@ namespace azalea {
     constexpr int majorVersion = 1;
     constexpr int minorVersion = 1;
     constexpr int patchVersion = 0;
-    constexpr auto addVersion = "a";
+    constexpr auto addVersion = "tuned";
 
     /**************************************************************************
      * Statistics section
