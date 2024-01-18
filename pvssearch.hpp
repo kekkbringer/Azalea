@@ -26,3 +26,4 @@ inline auto measureTimeSinceStart() {
  *
  */
 void search(GameState& gs, const int depth, const zobristKeys& zobrist);
+

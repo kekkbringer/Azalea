@@ -39,3 +39,4 @@ void dumpBootMsg() {
 		      << azalea::patchVersion << " <3\n";
     file.close();
 }
+

@@ -278,3 +278,4 @@ UnmakeInfo GameState::makeMove(const Move& m, const zobristKeys& zobrist) {
 
     return umi;
 }
+

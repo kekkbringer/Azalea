@@ -14,3 +14,4 @@ GameState fen(std::string f, const zobristKeys& zobrist);
  * Returns FEN string of current game state
  */
 std::string toFen (const GameState& gs);
+

@@ -979,3 +979,4 @@ bitb bishopAttacks(const bitb occ, const int index) {
 
     return atks;
 }
+

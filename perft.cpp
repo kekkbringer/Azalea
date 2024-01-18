@@ -48,3 +48,4 @@ unsigned long long int perft(GameState& gs, int depth,
 
     return nodes;
 }
+

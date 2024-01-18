@@ -66,3 +66,4 @@ config:
 tests: $(BIN_DIR)/$(TEST_EXEC)
 
 MKDIR_P ?= mkdir -p
+

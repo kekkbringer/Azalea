@@ -227,3 +227,4 @@ void GameState::unmakeMove(UnmakeInfo umi, const zobristKeys& zobrist) {
     this->whiteToMove = !this->whiteToMove;
     this->zhash ^= zobrist.sideToMove;
 }
+

@@ -31,7 +31,7 @@ bool checkThreeFoldRep(const GameState& gs) {
     int repetitions = 0;
     for (int i=gs.repPlyCounter-1; i>=0 and i<azalea::repHistMaxPly; i--) {
         if (gs.repHist[i] == gs.zhash) repetitions++;
-	if (repetitions == 1) {
+	if (repetitions == 1) { // for now
 	    return true;
 	}
     }
@@ -559,3 +559,4 @@ saveTTAndReturn:
 
     return bestscore;
 }
+

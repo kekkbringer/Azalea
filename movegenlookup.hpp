@@ -133,3 +133,4 @@ constexpr uint64_t knightAttacks[64] = {
 0x10a00000000000,
 0x20400000000000,
 };
+

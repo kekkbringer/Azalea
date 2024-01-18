@@ -10,3 +10,4 @@ struct zobristKeys {
 };
 void checkLinearIndependence(const int n, const zobristKeys z);
 zobristKeys initZobrist();
+

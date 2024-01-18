@@ -33,3 +33,4 @@ bitb detectDiagonallyPinnedPieces(const GameState& gs);
 bitb pawnAttacks(const bool whiteToMove, const bitb pawns);
 bitb rookAttacks(const bitb occ, const int index);
 bitb bishopAttacks(const bitb occ, const int index);
+

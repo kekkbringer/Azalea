@@ -84,3 +84,4 @@ std::string scoreOrMate(const int score) {
     }
     return "cp " + std::to_string(score/10);
 }
+

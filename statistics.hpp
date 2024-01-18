@@ -26,3 +26,4 @@ void outputStats(const std::string text);
  * Function that dumps boot message to statfile, containing version info
  */
 void dumpBootMsg();
+
