@@ -96,3 +96,4 @@ int qsearch(GameState& gs, int alpha, int beta, const zobristKeys& zobrist) {
 
     return alpha;
 }
+

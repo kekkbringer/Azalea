@@ -244,3 +244,4 @@ std::string toFen(const GameState& gs) {
 
     return fen;
 }
+

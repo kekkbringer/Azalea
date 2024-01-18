@@ -39,3 +39,4 @@ zobristKeys initZobrist() {
 
     return zobrist;
 }
+

@@ -249,3 +249,4 @@ int eval(const GameState& gs) {
     if (!gs.whiteToMove) return -val;
     return val;
 }
+

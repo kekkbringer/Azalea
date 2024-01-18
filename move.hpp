@@ -55,3 +55,4 @@ public:
     bool blackShort;
     bool blackLong;
 };
+
