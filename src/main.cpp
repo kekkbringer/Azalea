@@ -1,8 +1,12 @@
-#include "version.hpp"
+#include "engine.hpp"
+#include "uci.hpp"
 
 #include <iostream>
 
 int main() {
-    std::cout << "Azalea " << azalea::version() << '\n';
+    azalea::Engine engine;
+    azalea::Uci uci(engine, std::cin, std::cout);
+    uci.loop();
+
     return 0;
 }

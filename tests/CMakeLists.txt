@@ -8,7 +8,15 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(Catch2)
 
-add_executable(azalea_tests test_version.cpp)
+add_executable(azalea_tests
+    test_attacks.cpp
+    test_board.cpp
+    test_legality.cpp
+    test_make_move.cpp
+    test_move.cpp
+    test_perft.cpp
+    test_version.cpp
+)
 target_link_libraries(azalea_tests PRIVATE azalea_lib Catch2::Catch2WithMain)
 
 include(Catch)

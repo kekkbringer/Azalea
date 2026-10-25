@@ -1,4 +1,13 @@
-add_library(azalea_lib STATIC version.cpp)
+add_library(azalea_lib STATIC
+    board.cpp
+    uci.cpp
+    version.cpp
+    movegeneration.cpp
+    engine.cpp
+    search.cpp
+    perft.cpp
+    attacks.cpp
+)
 target_include_directories(azalea_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 add_executable(azalea main.cpp)
