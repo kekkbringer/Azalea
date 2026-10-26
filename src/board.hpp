@@ -57,6 +57,7 @@ struct Board {
     [[nodiscard]] PieceType piece_at_square(const int) const noexcept;
     [[nodiscard]] bool is_legal(const Move) const;
     [[nodiscard]] bool is_attacked(const int, const bool) const;
+    [[nodiscard]] bool in_check() const;
 };
 
 } // namespace azalea

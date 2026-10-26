@@ -2,6 +2,7 @@
 #include "version.hpp"
 #include "board.hpp"
 #include "movegeneration.hpp"
+#include "eval.hpp"
 
 #include <string>
 #include <sstream>
@@ -136,10 +137,17 @@ std::chrono::milliseconds Uci::read_ms(std::istringstream& iss) {
     return std::chrono::milliseconds{ms};
 }
 
+std::string Uci::format_score(const int s) {
+    if (s >=  MATE_BOUND) return "mate " + std::to_string((SCORE_MATE - s + 1) / 2);
+    if (s <= -MATE_BOUND) return "mate " + std::to_string(-(SCORE_MATE + s) / 2);
+    return "cp " + std::to_string(s);
+}
+
 void Uci::on_info(const SearchInfo& si) {
     send("info depth " + std::to_string(si.depth)
-           + " score cp " + std::to_string(si.score_cp)
-           + " nodes " + std::to_string(si.nodes));
+           + " score " + format_score(si.score_cp)
+           + " nodes " + std::to_string(si.nodes)
+           + " time "  + std::to_string(si.time.count()));
 }
 
 void Uci::on_bestmove(const Move& best, const Move& ponder) {

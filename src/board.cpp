@@ -7,6 +7,12 @@
 
 namespace azalea {
 
+[[nodiscard]] bool Board::in_check() const {
+    const Bitboard& us = white_to_move ? white_pieces : black_pieces;
+    const int king_sq = lsb(us & kings);
+    return is_attacked(king_sq, not white_to_move);
+}
+
 [[nodiscard]] bool Board::is_attacked(const int sq, const bool by_white) const {
     const Bitboard& them = by_white ? white_pieces : black_pieces;
     const Bitboard occ = white_pieces | black_pieces;

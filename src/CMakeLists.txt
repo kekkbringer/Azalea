@@ -7,6 +7,7 @@ add_library(azalea_lib STATIC
     search.cpp
     perft.cpp
     attacks.cpp
+    eval.cpp
 )
 target_include_directories(azalea_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 

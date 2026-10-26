@@ -21,6 +21,7 @@ private:
     void send(const std::string_view line);
     Move parse_move(const Board&, std::string_view);
     static std::chrono::milliseconds read_ms(std::istringstream& iss);
+    std::string format_score(const int);
     
     std::istream& in;
     std::ostream& out;
