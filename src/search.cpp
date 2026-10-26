@@ -36,7 +36,7 @@ void search(Board& board, const SearchLimits& limits, SearchReporter& reporter, 
     }
 
     int max_depth = limits.depth > 0 ? limits.depth : MAX_PLY - 1;
-    max_depth = std::max(max_depth, MAX_PLY - 1);
+    max_depth = std::min(max_depth, MAX_PLY - 1);
 
 
     // -------------------------- iterative deepening ---------------------------
@@ -83,7 +83,7 @@ int alpha_beta(const Board& board, const int depth, const int ply,
                int alpha, int beta, SearchState& state) {
     state.pv_length[ply] = ply; // empty PV at this node
 
-    if (depth <= 0) return eval(board);
+    if (depth <= 0) return quiescence(board, ply, alpha, beta, state);
     if (ply >= MAX_PLY - 1) return eval(board);
 
     if (state.should_stop()) return 0; // result gets discarded, score doesnt matter
@@ -135,6 +135,64 @@ int alpha_beta(const Board& board, const int depth, const int ply,
                 // update PV length
                 state.pv_length[ply] = state.pv_length[ply+1];
 
+                if (alpha >= beta) break; // beta cutoff
+            }
+        }
+    }
+
+    return best_score;
+}
+
+int quiescence(const Board& board, const int ply, int alpha, int beta, SearchState& state) {
+    const bool in_check = board.in_check();
+    int best_score = -SCORE_INF;
+    if (not in_check) {
+        const int stand_pat = eval(board);
+        if (stand_pat >= beta) return stand_pat; // already good enough, no capture needed
+        if (stand_pat > alpha) alpha = stand_pat;
+        best_score = stand_pat;
+    }
+
+    if (ply >= MAX_PLY - 1) return eval(board);
+    if (state.should_stop()) return best_score;
+
+    // generate all legal moves
+    Movelist mlist;
+    generate_legal_moves(board, mlist);
+
+    // no legal moves?
+    if (mlist.size() == 0) {
+        if (board.in_check()) return -SCORE_MATE + ply; // mate
+        else return 0; // stalemate
+    }
+
+    // MVV-LVA
+    Move hint{};
+    int scores[256];
+    for (std::size_t i=0; i<mlist.size(); ++i) scores[i] = score_move_mvv_lva(board, mlist.moves[i], hint);
+
+    // loop over legal moves
+    for (size_t i=0; i<mlist.size(); ++i) {
+        // find most promising move remaining in the movelist
+        size_t promising = i;
+        for (size_t j=i+1; j<mlist.size(); ++j)
+            if (scores[j] > scores[promising]) promising = j;
+        std::swap(mlist.moves[i], mlist.moves[promising]);
+        std::swap(scores[i], scores[promising]);
+
+        const Move& m = mlist.moves[i];
+        // dont search quiet moves
+        if (not in_check and not (m.is_capture() or m.is_queen_promotion())) break;
+
+        ++state.nodes;
+        Board copy = board;
+        copy.make_move(m);
+        int score = -quiescence(copy, ply+1, -beta, -alpha, state);
+
+        if (score > best_score) {
+            best_score = score;
+            if (score > alpha) {
+                alpha = score;
                 if (alpha >= beta) break; // beta cutoff
             }
         }
