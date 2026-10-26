@@ -1,6 +1,7 @@
 #include "search.hpp"
 #include "movegeneration.hpp"
 #include "eval.hpp"
+#include "search_helper.hpp"
 
 #include <chrono>
 #include <algorithm>
@@ -34,22 +35,32 @@ void search(Board& board, const SearchLimits& limits, SearchReporter& reporter, 
         state.hard = std::min(state.soft*3, available);
     }
 
-    const int max_depth = limits.depth > 0 ? limits.depth : MAX_PLY;
+    int max_depth = limits.depth > 0 ? limits.depth : MAX_PLY - 1;
+    max_depth = std::max(max_depth, MAX_PLY - 1);
 
 
     // -------------------------- iterative deepening ---------------------------
     Move best_move;
     int  best_score = 0;
+    std::vector<Move> best_pv;
     for (int depth=1; depth<=max_depth; ++depth) {
 
         // call search on root node
-        const auto [move, score] = search_root(board, depth, state);
+        const auto score = alpha_beta(board, depth, 0, -SCORE_INF, SCORE_INF, state);
 
         // discard incomplete iterations
         if (state.stopped and depth > 1) break;
 
-        best_move = move;
-        best_score = score;
+        // copy row 0 from the PV table before the next iteration overwrites it
+        const auto& row = state.pv_table[0];
+        std::vector<Move> pv(row, row + state.pv_length[0]);
+
+        if (not pv.empty()) {
+            best_move = pv.front();
+            best_score = score;
+            best_pv = std::move(pv);
+            state.root_best = best_move; // TODO: delete when TT is implemented
+        }
 
         const auto end = std::chrono::steady_clock::now();
 
@@ -58,48 +69,24 @@ void search(Board& board, const SearchLimits& limits, SearchReporter& reporter, 
         si.score_cp = best_score;
         si.nodes = state.nodes;
         si.time = std::chrono::duration_cast<ms>(end - state.start);
+        si.pv = best_pv;
         reporter.on_info(si);
 
         // reached soft time limit?
         if (state.timed and state.elapsed() >= state.soft) break;
     }
     
-    // "go infinite": the answer may only come after "stop"
-    while (limits.infinite and not st.stop_requested())
-        std::this_thread::sleep_for(ms(1));
-
-    reporter.on_bestmove(best_move, Move{});
+    reporter.on_bestmove(best_move, best_pv.size() > 1 ? best_pv[1] : Move{});
 }
 
-std::pair<Move, int> search_root(const Board& board, const int depth, SearchState& state) {
-    int best_score = -SCORE_INF;
-    Move best_move{};
+int alpha_beta(const Board& board, const int depth, const int ply,
+               int alpha, int beta, SearchState& state) {
+    state.pv_length[ply] = ply; // empty PV at this node
 
-    // generate all legal moves
-    Movelist mlist;
-    generate_legal_moves(board, mlist);
-
-    // loop over legal moves
-    for (const Move m: mlist) {
-        ++state.nodes;
-        Board copy = board;
-        copy.make_move(m);
-        int score = -negamax(copy, depth-1, 1, state);
-
-        // found better move? -> save
-        if (score > best_score) {
-            best_score = score;
-            best_move = m;
-        }
-    }
-
-    return std::make_pair(best_move, best_score);
-}
-
-int negamax(const Board& board, const int depth, const int ply, SearchState& state) {
     if (depth <= 0) return eval(board);
+    if (ply >= MAX_PLY - 1) return eval(board);
 
-    if (state.should_stop()) return 0;
+    if (state.should_stop()) return 0; // result gets discarded, score doesnt matter
 
     // generate all legal moves
     Movelist mlist;
@@ -111,14 +98,46 @@ int negamax(const Board& board, const int depth, const int ply, SearchState& sta
         else return 0; // stalemate
     }
 
+    // order moves, hint-move first, then MVV-LVA
+    Move hint{};
+    if (ply == 0 and state.root_best != Move{}) hint = state.root_best;
+    int scores[256];
+    for (std::size_t i=0; i<mlist.size(); ++i) scores[i] = score_move_mvv_lva(board, mlist.moves[i], hint);
+
     // loop over legal moves
     int best_score = -SCORE_INF;
-    for (const Move m: mlist) {
+    for (size_t i=0; i<mlist.size(); ++i) {
+        // find most promising move remaining in the movelist
+        size_t promising = i;
+        for (size_t j=i+1; j<mlist.size(); ++j)
+            if (scores[j] > scores[promising]) promising = j;
+        std::swap(mlist.moves[i], mlist.moves[promising]);
+        std::swap(scores[i], scores[promising]);
+
+        const Move& m = mlist.moves[i];
+
         ++state.nodes;
         Board copy = board;
         copy.make_move(m);
-        int score = -negamax(copy, depth-1, ply+1, state);
-        best_score = std::max(best_score, score);
+        int score = -alpha_beta(copy, depth-1, ply+1, -beta, -alpha, state);
+
+        if (score > best_score) {
+            best_score = score;
+
+            if (score > alpha) {
+                alpha = score;
+
+                // new PV found: m followed by childs PV
+                state.pv_table[ply][ply] = m;
+                // copy childs PV
+                for (int k=ply+1; k<state.pv_length[ply+1]; ++k)
+                    state.pv_table[ply][k] = state.pv_table[ply+1][k];
+                // update PV length
+                state.pv_length[ply] = state.pv_length[ply+1];
+
+                if (alpha >= beta) break; // beta cutoff
+            }
+        }
     }
 
     return best_score;

@@ -144,10 +144,13 @@ std::string Uci::format_score(const int s) {
 }
 
 void Uci::on_info(const SearchInfo& si) {
+    std::string pv_line = " pv ";
+    for (const auto& m: si.pv) pv_line += to_uci(m) + " ";
     send("info depth " + std::to_string(si.depth)
            + " score " + format_score(si.score_cp)
            + " nodes " + std::to_string(si.nodes)
-           + " time "  + std::to_string(si.time.count()));
+           + " time "  + std::to_string(si.time.count())
+           + pv_line);
 }
 
 void Uci::on_bestmove(const Move& best, const Move& ponder) {

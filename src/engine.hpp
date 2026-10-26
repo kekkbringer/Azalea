@@ -9,6 +9,8 @@
 
 namespace azalea {
 
+constexpr int MAX_PLY = 256;
+
 constexpr std::string_view start_fen =
     "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "board.hpp"
+#include "engine.hpp"
 
 #include <cstdlib> // std::abs
 
@@ -8,7 +9,6 @@ namespace azalea {
 
 constexpr int SCORE_INF  = 1048576;
 constexpr int SCORE_MATE = 1048575;
-constexpr int MAX_PLY    =     256;
 constexpr int MATE_BOUND = SCORE_MATE - MAX_PLY;
 
 constexpr bool is_mate_score(int s) { return std::abs(s) >= MATE_BOUND; }

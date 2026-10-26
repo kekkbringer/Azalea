@@ -16,6 +16,11 @@ struct SearchState {
     std::uint64_t next_check = 2048;
     bool stopped = false;
 
+    Move pv_table[MAX_PLY][MAX_PLY];
+    int  pv_length[MAX_PLY];
+
+    Move root_best; // TODO: will be deleted once the transposition table is implemented
+
     std::chrono::milliseconds elapsed() const {
         return std::chrono::duration_cast<std::chrono::milliseconds>(
                 std::chrono::steady_clock::now() - start);
@@ -34,7 +39,7 @@ struct SearchState {
 };
 
 void search(Board&, const SearchLimits&, SearchReporter&, std::stop_token);
-std::pair<Move, int> search_root(const Board&, const int, SearchState&);
-int negamax(const Board& board, const int, const int, SearchState&);
+int alpha_beta(const Board& board, const int depth, const int ply,
+               int alpha, int beta, SearchState& state);
 
 } // namespace azalea
