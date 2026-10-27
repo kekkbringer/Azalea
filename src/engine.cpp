@@ -20,6 +20,7 @@ void Engine::wait() {
 
 void Engine::new_game() {
     stop();
+    transposition_table.clear();
     board = Board{start_fen};
 }
 
@@ -32,8 +33,8 @@ void Engine::start_search(const SearchLimits& limits, SearchReporter& reporter) 
     stop();
     // worker should copy the board once
     worker = std::jthread(
-        [board_copy = board, limits, &reporter](std::stop_token st) mutable {
-            search(board_copy, limits, reporter, st);
+        [board_copy = board, limits, &reporter, &tt = transposition_table](std::stop_token st) mutable {
+            search(board_copy, limits, reporter, tt, st);
         });
 }
 

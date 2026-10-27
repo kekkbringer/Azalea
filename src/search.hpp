@@ -1,6 +1,7 @@
 #pragma once
 
 #include "engine.hpp"
+#include "transposition.hpp"
 
 #include <cstdint>
 
@@ -19,8 +20,6 @@ struct SearchState {
     Move pv_table[MAX_PLY][MAX_PLY];
     int  pv_length[MAX_PLY];
 
-    Move root_best; // TODO: will be deleted once the transposition table is implemented
-
     std::chrono::milliseconds elapsed() const {
         return std::chrono::duration_cast<std::chrono::milliseconds>(
                 std::chrono::steady_clock::now() - start);
@@ -38,9 +37,9 @@ struct SearchState {
     }
 };
 
-void search(Board&, const SearchLimits&, SearchReporter&, std::stop_token);
+void search(Board&, const SearchLimits&, SearchReporter&, TranspositionTable&, std::stop_token);
 int alpha_beta(Board& board, const int depth, const int ply,
-               int alpha, int beta, SearchState& state);
+               int alpha, int beta, SearchState& state, TranspositionTable&);
 int quiescence(Board& board, const int ply,
                int alpha, int beta, SearchState& state);
 

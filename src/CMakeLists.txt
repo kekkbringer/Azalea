@@ -9,6 +9,7 @@ add_library(azalea_lib STATIC
     attacks.cpp
     eval.cpp
     search_helper.cpp
+    transposition.cpp
 )
 target_include_directories(azalea_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 

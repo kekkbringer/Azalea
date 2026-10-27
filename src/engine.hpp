@@ -2,6 +2,7 @@
 
 #include "board.hpp"
 #include "perft.hpp"
+#include "transposition.hpp"
 
 #include <chrono>
 #include <mutex>
@@ -54,7 +55,9 @@ public:
     std::vector<DivideEntry> perft_divide(const int);
     void stop();
     void wait();
+
 private:
+    TranspositionTable transposition_table;
     Board board{start_fen};
     std::jthread worker;
 };

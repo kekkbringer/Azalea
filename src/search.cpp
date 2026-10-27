@@ -10,7 +10,7 @@ namespace azalea {
 
 using ms = std::chrono::milliseconds;
 
-void search(Board& board, const SearchLimits& limits, SearchReporter& reporter, std::stop_token st) {
+void search(Board& board, const SearchLimits& limits, SearchReporter& reporter, TranspositionTable& ttable, std::stop_token st) {
     SearchState state;
     state.st = st;
     state.start = std::chrono::steady_clock::now();
@@ -46,7 +46,7 @@ void search(Board& board, const SearchLimits& limits, SearchReporter& reporter, 
     for (int depth=1; depth<=max_depth; ++depth) {
 
         // call search on root node
-        const auto score = alpha_beta(board, depth, 0, -SCORE_INF, SCORE_INF, state);
+        const auto score = alpha_beta(board, depth, 0, -SCORE_INF, SCORE_INF, state, ttable);
 
         // discard incomplete iterations
         if (state.stopped and depth > 1) break;
@@ -59,7 +59,6 @@ void search(Board& board, const SearchLimits& limits, SearchReporter& reporter, 
             best_move = pv.front();
             best_score = score;
             best_pv = std::move(pv);
-            state.root_best = best_move; // TODO: delete when TT is implemented
         }
 
         const auto end = std::chrono::steady_clock::now();
@@ -80,8 +79,30 @@ void search(Board& board, const SearchLimits& limits, SearchReporter& reporter, 
 }
 
 int alpha_beta(Board& board, const int depth, const int ply,
-               int alpha, int beta, SearchState& state) {
+               int alpha, int beta, SearchState& state, TranspositionTable& ttable) {
     state.pv_length[ply] = ply; // empty PV at this node
+
+    // 50 move rule and repetition
+    if (ply > 0 and board.halfmove_clock() >= 100) return 0;
+    if (ply > 0 and board.is_repetition()) return 0;
+
+
+    // look in transposition table
+    const auto tt_entry = ttable.probe(board.hash());
+    Move tt_move{};
+    if (tt_entry != nullptr) {
+        tt_move = tt_entry->move;
+        if (ply > 0 and tt_entry->depth >= depth) {
+            int tt_score = tt_entry->score;
+            // adjust tt_score in case of mate
+            if (tt_score >=  MATE_BOUND) tt_score -= ply;
+            if (tt_score <= -MATE_BOUND) tt_score += ply;
+            if (tt_entry->bound == TTentry::Bound::Exact) return tt_score;
+            if (tt_entry->bound == TTentry::Bound::Lower and tt_score >= beta) return tt_score;
+            if (tt_entry->bound == TTentry::Bound::Upper and tt_score <= alpha) return tt_score;
+        }
+    }
+    const auto original_alpha = alpha;
 
     if (depth <= 0) return quiescence(board, ply, alpha, beta, state);
     if (ply >= MAX_PLY - 1) return eval(board);
@@ -98,18 +119,13 @@ int alpha_beta(Board& board, const int depth, const int ply,
         else return 0; // stalemate
     }
 
-    // 50 move rule and repetition
-    if (ply > 0 and board.halfmove_clock() >= 100) return 0;
-    if (ply > 0 and board.is_repetition()) return 0;
-
-    // order moves, hint-move first, then MVV-LVA
-    Move hint{};
-    if (ply == 0 and state.root_best != Move{}) hint = state.root_best;
+    // order moves, tt move first, then MVV-LVA
     int scores[256];
-    for (std::size_t i=0; i<mlist.size(); ++i) scores[i] = score_move_mvv_lva(board, mlist.moves[i], hint);
+    for (std::size_t i=0; i<mlist.size(); ++i) scores[i] = score_move_mvv_lva(board, mlist.moves[i], tt_move);
 
     // loop over legal moves
     int best_score = -SCORE_INF;
+    Move best_move{};
     for (size_t i=0; i<mlist.size(); ++i) {
         // find most promising move remaining in the movelist
         size_t promising = i;
@@ -121,12 +137,13 @@ int alpha_beta(Board& board, const int depth, const int ply,
         const Move& m = mlist.moves[i];
 
         ++state.nodes;
-        Board copy = board;
-        copy.make_move(m);
-        int score = -alpha_beta(copy, depth-1, ply+1, -beta, -alpha, state);
+        board.make_move(m);
+        int score = -alpha_beta(board, depth-1, ply+1, -beta, -alpha, state, ttable);
+        board.unmake_move(m);
 
         if (score > best_score) {
             best_score = score;
+            best_move = m;
 
             if (score > alpha) {
                 alpha = score;
@@ -142,6 +159,25 @@ int alpha_beta(Board& board, const int depth, const int ply,
                 if (alpha >= beta) break; // beta cutoff
             }
         }
+    }
+
+    // store information in transposition table
+    if (not state.stopped) {
+        // figure out bound
+        TTentry::Bound bound = TTentry::Bound::Exact;
+        if (best_score <= original_alpha) bound = TTentry::Bound::Upper;
+        if (best_score >= beta)           bound = TTentry::Bound::Lower;
+
+        // for an upper bound, keep the old move in the table
+        best_move = Move{};
+
+        // adjust for mate if needed
+        int store_score = best_score;
+        if (store_score >=  MATE_BOUND) store_score += ply;
+        if (store_score <= -MATE_BOUND) store_score -= ply;
+
+        // store
+        ttable.store(board.hash(), best_move, store_score, depth, bound);
     }
 
     return best_score;
@@ -191,9 +227,9 @@ int quiescence(Board& board, const int ply, int alpha, int beta, SearchState& st
         if (not in_check and not (m.is_capture() or m.is_queen_promotion())) break;
 
         ++state.nodes;
-        Board copy = board;
-        copy.make_move(m);
-        int score = -quiescence(copy, ply+1, -beta, -alpha, state);
+        board.make_move(m);
+        int score = -quiescence(board, ply+1, -beta, -alpha, state);
+        board.unmake_move(m);
 
         if (score > best_score) {
             best_score = score;
