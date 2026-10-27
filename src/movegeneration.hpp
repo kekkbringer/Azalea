@@ -19,7 +19,7 @@ public:
 };
 
 
-void generate_pseudolegal_moves(const Board&, Movelist&);
-void generate_legal_moves(const Board&, Movelist&);
+void generate_pseudolegal_moves(Board&, Movelist&);
+void generate_legal_moves(Board&, Movelist&);
 
 } // namespace azalea

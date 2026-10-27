@@ -12,7 +12,7 @@ struct DivideEntry {
     std::uint64_t nodes;
 };
 
-std::uint64_t perft(const Board& board, int depth);
-std::vector<DivideEntry> perft_divide(const Board& board, const int depth);
+std::uint64_t perft(Board& board, int depth);
+std::vector<DivideEntry> perft_divide(Board& board, const int depth);
 
 } // namespace azalea

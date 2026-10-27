@@ -15,7 +15,10 @@ add_executable(azalea_tests
     test_make_move.cpp
     test_move.cpp
     test_perft.cpp
+    test_repetition.cpp
+    test_unmake_move.cpp
     test_version.cpp
+    test_zobrist.cpp
 )
 target_link_libraries(azalea_tests PRIVATE azalea_lib Catch2::Catch2WithMain)
 

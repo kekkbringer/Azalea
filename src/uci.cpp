@@ -120,7 +120,7 @@ void Uci::handle_go(std::istringstream& iss) {
     engine.start_search(sl, *this);
 }
 
-Move Uci::parse_move(const Board& board, std::string_view text) {
+Move Uci::parse_move(Board& board, std::string_view text) {
     Movelist move_list;
     generate_legal_moves(board, move_list);
 

@@ -55,9 +55,9 @@ TEST_CASE("Start position is parsed correctly", "[board][fen]") {
     CHECK(board.kings == squares({E1, E8}));
 
     CHECK(board.white_to_move);
-    CHECK(board.castle_rights == all_castle_rights);
-    CHECK(board.en_passant_target == -1);
-    CHECK(board.halfmove_clock == 0);
+    CHECK(board.castle_rights() == all_castle_rights);
+    CHECK(board.en_passant_target() == -1);
+    CHECK(board.halfmove_clock() == 0);
     CHECK(board.fullmove_number == 1);
 }
 
@@ -86,7 +86,7 @@ TEST_CASE("Side to move is parsed", "[board][fen]") {
 
 TEST_CASE("Castling rights are parsed", "[board][fen]") {
     const auto rights = [](const char* field) {
-        return Board{std::string{"r3k2r/8/8/8/8/8/8/R3K2R w "} + field + " - 0 1"}.castle_rights;
+        return Board{std::string{"r3k2r/8/8/8/8/8/8/R3K2R w "} + field + " - 0 1"}.castle_rights();
     };
 
     CHECK(rights("KQkq") == all_castle_rights);
@@ -100,16 +100,26 @@ TEST_CASE("Castling rights are parsed", "[board][fen]") {
 }
 
 TEST_CASE("En passant target is parsed", "[board][fen]") {
-    CHECK(Board{start_fen}.en_passant_target == -1);
-    CHECK(Board{"rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1"}
-              .en_passant_target == azalea::E3);
+    CHECK(Board{start_fen}.en_passant_target() == -1);
+    CHECK(Board{"4k3/8/8/8/3pP3/8/8/4K3 b - e3 0 1"}.en_passant_target() == azalea::E3);
     CHECK(Board{"rnbqkbnr/ppp1p1pp/8/3pPp2/8/8/PPPP1PPP/RNBQKBNR w KQkq f6 0 3"}
-              .en_passant_target == azalea::F6);
+              .en_passant_target() == azalea::F6);
+}
+
+TEST_CASE("En passant target is dropped if no pawn can capture", "[board][fen]") {
+    // Many GUIs write the square after every double push. Keeping it would make the
+    // position differ from the same position reached without it.
+    CHECK(Board{"rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1"}
+              .en_passant_target() == -1);
+    CHECK(Board{"rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1"}.hash()
+          == Board{"rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1"}.hash());
+    // An own pawn next to the square can't capture either.
+    CHECK(Board{"4k3/8/8/8/3PP3/8/8/4K3 b - e3 0 1"}.en_passant_target() == -1);
 }
 
 TEST_CASE("Move counters are parsed", "[board][fen]") {
     const Board board{"r3k2r/8/8/8/8/8/8/R3K2R b Kq - 47 112"};
-    CHECK(board.halfmove_clock == 47);
+    CHECK(board.halfmove_clock() == 47);
     CHECK(board.fullmove_number == 112);
 }
 
@@ -152,8 +162,8 @@ TEST_CASE("to_fen() reproduces the parsed FEN", "[board][fen]") {
         "r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1",
         "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8",
         "r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10",
-        // en passant targets for both sides
-        "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1",
+        // en passant targets for both sides (only kept if a pawn can capture)
+        "rnbqkbnr/ppp1pppp/8/8/3pP3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 3",
         "rnbqkbnr/ppp1p1pp/8/3pPp2/8/8/PPPP1PPP/RNBQKBNR w KQkq f6 0 3",
         // black to move, partial castling rights, larger counters
         "rnbqkbnr/pp1ppppp/8/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2",

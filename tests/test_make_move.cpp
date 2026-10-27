@@ -47,15 +47,40 @@ TEST_CASE("make_move: quiet moves", "[board][make_move]") {
     }
 }
 
-TEST_CASE("make_move: double pawn pushes set the en passant target", "[board][make_move]") {
-    SECTION("white") {
-        check_move(start_fen, Move{DOUBLE_PAWN_PUSH, E2, E4},
-                   "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1");
+TEST_CASE("make_move: double pawn pushes set the en passant target only if it can be used",
+          "[board][make_move]") {
+    // The square is only set when an enemy pawn could capture onto it. Otherwise the
+    // position is the same as without it, which matters for repetition detection.
+    SECTION("white, enemy pawn on the left") {
+        check_move("4k3/8/8/8/3p4/8/4P3/4K3 w - - 0 1", Move{DOUBLE_PAWN_PUSH, E2, E4},
+                   "4k3/8/8/8/3pP3/8/8/4K3 b - e3 0 1");
+    }
+    SECTION("white, enemy pawn on the right") {
+        check_move("4k3/8/8/8/5p2/8/4P3/4K3 w - - 0 1", Move{DOUBLE_PAWN_PUSH, E2, E4},
+                   "4k3/8/8/8/4Pp2/8/8/4K3 b - e3 0 1");
     }
     SECTION("black, which also increments the fullmove number") {
-        check_move("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1",
+        check_move("4k3/4p3/8/3P4/8/8/8/4K3 b - - 0 1", Move{DOUBLE_PAWN_PUSH, E7, E5},
+                   "4k3/8/8/3Pp3/8/8/8/4K3 w - e6 0 2");
+    }
+    SECTION("no enemy pawn next to it: from the start position") {
+        check_move(start_fen, Move{DOUBLE_PAWN_PUSH, E2, E4},
+                   "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1");
+        check_move("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
                    Move{DOUBLE_PAWN_PUSH, E7, E5},
-                   "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq e6 0 2");
+                   "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2");
+    }
+    SECTION("only an own pawn next to it") {
+        check_move("4k3/8/8/8/3P4/8/4P3/4K3 w - - 0 1", Move{DOUBLE_PAWN_PUSH, E2, E4},
+                   "4k3/8/8/8/3PP3/8/8/4K3 b - - 0 1");
+    }
+    SECTION("an enemy pawn on the same rank but not adjacent") {
+        check_move("4k3/8/8/8/2p5/8/4P3/4K3 w - - 0 1", Move{DOUBLE_PAWN_PUSH, E2, E4},
+                   "4k3/8/8/8/2p1P3/8/8/4K3 b - - 0 1");
+    }
+    SECTION("an a-file push doesn't wrap around to the h-file") {
+        check_move("4k3/8/8/8/7p/8/P7/4K3 w - - 0 1", Move{DOUBLE_PAWN_PUSH, A2, A4},
+                   "4k3/8/8/8/P6p/8/8/4K3 b - - 0 1");
     }
 }
 

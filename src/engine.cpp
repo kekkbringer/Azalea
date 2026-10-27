@@ -30,6 +30,7 @@ void Engine::set_position(Board& b) {
 
 void Engine::start_search(const SearchLimits& limits, SearchReporter& reporter) {
     stop();
+    // worker should copy the board once
     worker = std::jthread(
         [board_copy = board, limits, &reporter](std::stop_token st) mutable {
             search(board_copy, limits, reporter, st);

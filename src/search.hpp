@@ -39,9 +39,9 @@ struct SearchState {
 };
 
 void search(Board&, const SearchLimits&, SearchReporter&, std::stop_token);
-int alpha_beta(const Board& board, const int depth, const int ply,
+int alpha_beta(Board& board, const int depth, const int ply,
                int alpha, int beta, SearchState& state);
-int quiescence(const Board& board, const int ply,
+int quiescence(Board& board, const int ply,
                int alpha, int beta, SearchState& state);
 
 } // namespace azalea

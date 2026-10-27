@@ -5,7 +5,7 @@
 
 namespace azalea {
 
-std::uint64_t perft(const Board& board, int depth) {
+std::uint64_t perft(Board& board, int depth) {
     if (depth == 0) return 1;
 
     Movelist mlist;
@@ -13,15 +13,15 @@ std::uint64_t perft(const Board& board, int depth) {
 
     std::uint64_t nodes = 0;
     for (const Move& m: mlist) {
-        Board copy = board;
-        copy.make_move(m);
-        nodes += perft(copy, depth-1);
+        board.make_move(m);
+        nodes += perft(board, depth-1);
+        board.unmake_move(m);
     }
 
     return nodes;
 }
 
-std::vector<DivideEntry> perft_divide(const Board& board, const int depth) {
+std::vector<DivideEntry> perft_divide(Board& board, const int depth) {
     std::vector<DivideEntry> entry_vec;
 
     Movelist mlist;
@@ -30,9 +30,9 @@ std::vector<DivideEntry> perft_divide(const Board& board, const int depth) {
     for (size_t i=0; i<mlist.size(); ++i) {
         DivideEntry de;
         de.move = mlist.moves[i];
-        Board copy = board;
-        copy.make_move(de.move);
-        de.nodes = perft(copy, depth-1);
+        board.make_move(de.move);
+        de.nodes = perft(board, depth-1);
+        board.unmake_move(de.move);
         entry_vec.push_back(de);
     }
 

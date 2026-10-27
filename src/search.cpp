@@ -79,7 +79,7 @@ void search(Board& board, const SearchLimits& limits, SearchReporter& reporter, 
     reporter.on_bestmove(best_move, best_pv.size() > 1 ? best_pv[1] : Move{});
 }
 
-int alpha_beta(const Board& board, const int depth, const int ply,
+int alpha_beta(Board& board, const int depth, const int ply,
                int alpha, int beta, SearchState& state) {
     state.pv_length[ply] = ply; // empty PV at this node
 
@@ -97,6 +97,10 @@ int alpha_beta(const Board& board, const int depth, const int ply,
         if (board.in_check()) return -SCORE_MATE + ply; // mate
         else return 0; // stalemate
     }
+
+    // 50 move rule and repetition
+    if (ply > 0 and board.halfmove_clock() >= 100) return 0;
+    if (ply > 0 and board.is_repetition()) return 0;
 
     // order moves, hint-move first, then MVV-LVA
     Move hint{};
@@ -143,7 +147,7 @@ int alpha_beta(const Board& board, const int depth, const int ply,
     return best_score;
 }
 
-int quiescence(const Board& board, const int ply, int alpha, int beta, SearchState& state) {
+int quiescence(Board& board, const int ply, int alpha, int beta, SearchState& state) {
     const bool in_check = board.in_check();
     int best_score = -SCORE_INF;
     if (not in_check) {
@@ -154,7 +158,9 @@ int quiescence(const Board& board, const int ply, int alpha, int beta, SearchSta
     }
 
     if (ply >= MAX_PLY - 1) return eval(board);
-    if (state.should_stop()) return best_score;
+    if (state.should_stop()) return eval(board);
+
+    if (ply > 0 and board.is_repetition()) return 0;
 
     // generate all legal moves
     Movelist mlist;

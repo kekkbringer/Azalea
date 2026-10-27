@@ -60,7 +60,10 @@ TEST_CASE("perft: standard positions", "[perft]") {
     }));
 
     INFO(c.name << ", depth " << c.depth << ": " << c.fen);
-    CHECK(azalea::perft(Board{c.fen}, c.depth) == c.nodes);
+    Board board{c.fen};
+    const std::string fen_before = board.to_fen();
+    CHECK(azalea::perft(board, c.depth) == c.nodes);
+    CHECK(board.to_fen() == fen_before); // make/unmake must leave the position unchanged
 }
 
 // Hidden by default (the leading "." in the tag). Run with:
@@ -78,11 +81,14 @@ TEST_CASE("perft: deep standard positions", "[.slow][perft]") {
     }));
 
     INFO(c.name << ", depth " << c.depth << ": " << c.fen);
-    CHECK(azalea::perft(Board{c.fen}, c.depth) == c.nodes);
+    Board board{c.fen};
+    const std::string fen_before = board.to_fen();
+    CHECK(azalea::perft(board, c.depth) == c.nodes);
+    CHECK(board.to_fen() == fen_before); // make/unmake must leave the position unchanged
 }
 
 TEST_CASE("perft_divide: one entry per legal root move", "[perft]") {
-    const Board board{start};
+    Board board{start};
 
     const auto depth1 = azalea::perft_divide(board, 1);
     CHECK(depth1.size() == 20);
@@ -103,7 +109,7 @@ TEST_CASE("perft_divide: one entry per legal root move", "[perft]") {
 TEST_CASE("perft_divide entries add up to perft", "[perft]") {
     const char* fen = GENERATE(start, kiwipete, position3, position4, position5, position6);
     INFO("fen: " << fen);
-    const Board board{fen};
+    Board board{fen};
 
     std::uint64_t total = 0;
     for (const auto& entry : azalea::perft_divide(board, 2)) {

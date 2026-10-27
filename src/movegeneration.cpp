@@ -4,14 +4,14 @@
 
 namespace azalea {
 
-void generate_legal_moves(const Board& board, Movelist& mlist) {
+void generate_legal_moves(Board& board, Movelist& mlist) {
 generate_pseudolegal_moves(board, mlist);
     for (size_t i=0; i<mlist.size(); i++) {
         if (not board.is_legal(mlist.moves[i])) mlist.remove_at(i--);
     }
 }
 
-void generate_pseudolegal_moves(const Board& board, Movelist& mlist) {
+void generate_pseudolegal_moves(Board& board, Movelist& mlist) {
     const Bitboard& us = board.white_to_move ? board.white_pieces : board.black_pieces;
     const Bitboard& them = board.white_to_move ? board.black_pieces : board.white_pieces;
     const Bitboard occ = board.white_pieces | board.black_pieces;
@@ -51,9 +51,9 @@ void generate_pseudolegal_moves(const Board& board, Movelist& mlist) {
     while (my_pawns != 0) {
         const int from = pop_lsb(my_pawns);
         Bitboard p_atks = attacks::pawn(board.white_to_move, from);
-        if (board.en_passant_target != -1) {
-            Bitboard ep_cap = p_atks & (1ULL << board.en_passant_target);
-            if (ep_cap != 0) mlist.push(Move(EN_PASSANT, from, board.en_passant_target));
+        if (board.en_passant_target() != -1) {
+            Bitboard ep_cap = p_atks & (1ULL << board.en_passant_target());
+            if (ep_cap != 0) mlist.push(Move(EN_PASSANT, from, board.en_passant_target()));
         }
         p_atks &= them;
         while (p_atks != 0) {
@@ -158,17 +158,17 @@ void generate_pseudolegal_moves(const Board& board, Movelist& mlist) {
 
     // castle
     if (board.white_to_move) {
-        if ((board.castle_rights & WHITE_SHORT) != 0)
+        if ((board.castle_rights() & WHITE_SHORT) != 0)
             if ((occ & 0x60ULL) == 0)
                 mlist.push(Move(KING_SIDE_CASTLE, E1, G1));
-        if ((board.castle_rights & WHITE_LONG ) != 0)
+        if ((board.castle_rights() & WHITE_LONG ) != 0)
             if ((occ & 0x0EULL) == 0)
                 mlist.push(Move(QUEEN_SIDE_CASTLE, E1, C1));
     } else { // black to move
-        if ((board.castle_rights & BLACK_SHORT) != 0)
+        if ((board.castle_rights() & BLACK_SHORT) != 0)
             if ((occ & (0x60ULL << 56)) == 0)
                 mlist.push(Move(KING_SIDE_CASTLE, E8, G8));
-        if ((board.castle_rights & BLACK_LONG ) != 0)
+        if ((board.castle_rights() & BLACK_LONG ) != 0)
             if ((occ & (0x0EULL << 56)) == 0)
                 mlist.push(Move(QUEEN_SIDE_CASTLE, E8, C8));
     }

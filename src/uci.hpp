@@ -19,7 +19,7 @@ private:
     void on_info(const SearchInfo&) override; // reports "info depth ..."
     void on_bestmove(const Move&, const Move&) override; // reports "bestmove e2e4 ..."
     void send(const std::string_view line);
-    Move parse_move(const Board&, std::string_view);
+    Move parse_move(Board&, std::string_view);
     static std::chrono::milliseconds read_ms(std::istringstream& iss);
     std::string format_score(const int);
     
