@@ -111,13 +111,7 @@ int alpha_beta(Board& board, const int depth, const int ply,
 
     // generate all legal moves
     Movelist mlist;
-    generate_legal_moves(board, mlist);
-
-    // no legal moves?
-    if (mlist.size() == 0) {
-        if (board.in_check()) return -SCORE_MATE + ply; // mate
-        else return 0; // stalemate
-    }
+    generate_pseudolegal_moves(board, mlist);
 
     // order moves, tt move first, then MVV-LVA
     int scores[256];
@@ -126,6 +120,7 @@ int alpha_beta(Board& board, const int depth, const int ply,
     // loop over legal moves
     int best_score = -SCORE_INF;
     Move best_move{};
+    int moves_searched = 0;
     for (size_t i=0; i<mlist.size(); ++i) {
         // find most promising move remaining in the movelist
         size_t promising = i;
@@ -135,6 +130,8 @@ int alpha_beta(Board& board, const int depth, const int ply,
         std::swap(scores[i], scores[promising]);
 
         const Move& m = mlist.moves[i];
+        if (not board.is_legal(m)) continue;
+        ++moves_searched;
 
         ++state.nodes;
         board.make_move(m);
@@ -161,6 +158,12 @@ int alpha_beta(Board& board, const int depth, const int ply,
         }
     }
 
+    // no legal moves?
+    if (moves_searched == 0) {
+        if (board.in_check()) return -SCORE_MATE + ply; // mate
+        else return 0; // stalemate
+    }
+
     // store information in transposition table
     if (not state.stopped) {
         // figure out bound
@@ -169,7 +172,7 @@ int alpha_beta(Board& board, const int depth, const int ply,
         if (best_score >= beta)           bound = TTentry::Bound::Lower;
 
         // for an upper bound, keep the old move in the table
-        best_move = Move{};
+        if (bound == TTentry::Bound::Upper) best_move = Move{};
 
         // adjust for mate if needed
         int store_score = best_score;
@@ -196,17 +199,11 @@ int quiescence(Board& board, const int ply, int alpha, int beta, SearchState& st
     if (ply >= MAX_PLY - 1) return eval(board);
     if (state.should_stop()) return eval(board);
 
-    if (ply > 0 and board.is_repetition()) return 0;
+    if (board.is_repetition()) return 0;
 
     // generate all legal moves
     Movelist mlist;
-    generate_legal_moves(board, mlist);
-
-    // no legal moves?
-    if (mlist.size() == 0) {
-        if (board.in_check()) return -SCORE_MATE + ply; // mate
-        else return 0; // stalemate
-    }
+    generate_pseudolegal_moves(board, mlist);
 
     // MVV-LVA
     Move hint{};
@@ -214,6 +211,7 @@ int quiescence(Board& board, const int ply, int alpha, int beta, SearchState& st
     for (std::size_t i=0; i<mlist.size(); ++i) scores[i] = score_move_mvv_lva(board, mlist.moves[i], hint);
 
     // loop over legal moves
+    int moves_searched = 0;
     for (size_t i=0; i<mlist.size(); ++i) {
         // find most promising move remaining in the movelist
         size_t promising = i;
@@ -223,6 +221,9 @@ int quiescence(Board& board, const int ply, int alpha, int beta, SearchState& st
         std::swap(scores[i], scores[promising]);
 
         const Move& m = mlist.moves[i];
+        if (not board.is_legal(m)) continue;
+        ++moves_searched;
+
         // dont search quiet moves
         if (not in_check and not (m.is_capture() or m.is_queen_promotion())) break;
 
@@ -238,6 +239,12 @@ int quiescence(Board& board, const int ply, int alpha, int beta, SearchState& st
                 if (alpha >= beta) break; // beta cutoff
             }
         }
+    }
+
+    // no legal moves?
+    if (moves_searched == 0) {
+        if (board.in_check()) return -SCORE_MATE + ply; // mate
+        else return 0; // stalemate
     }
 
     return best_score;

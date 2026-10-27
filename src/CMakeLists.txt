@@ -13,6 +13,12 @@ add_library(azalea_lib STATIC
 )
 target_include_directories(azalea_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
+# Hardware popcount: without it std::popcount compiles to a library call (__popcountdi2).
+# PUBLIC so the tests compile the inline bitboard helpers in the headers the same way.
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang" AND CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64")
+    target_compile_options(azalea_lib PUBLIC -mpopcnt)
+endif()
+
 add_executable(azalea main.cpp)
 target_link_libraries(azalea PRIVATE azalea_lib)
 
