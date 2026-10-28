@@ -39,6 +39,7 @@ struct PositionInfo {
     PieceType captured{PieceType::Empty};
     Bitboard checkers{0ULL};
     Bitboard pinned{0ULL};
+    int pliesFromLastNull{0};
 };
 
 
@@ -79,6 +80,8 @@ struct Board {
 
     void make_move(const Move);
     void unmake_move(const Move);
+    void make_null_move();
+    void unmake_null_move();
     void update_checker_pinned();
     [[nodiscard]] Bitboard attacking_to (const int, const Bitboard) const noexcept;
     [[nodiscard]] std::string to_fen() const noexcept;
@@ -88,6 +91,7 @@ struct Board {
     [[nodiscard]] bool is_attacked(const int, const bool) const;
     [[nodiscard]] bool in_check() const { return position_history.back().checkers != 0; }
     [[nodiscard]] bool is_repetition() const;
+    [[nodiscard]] bool player_has_non_pawn_material() const;
 };
 
 } // namespace azalea

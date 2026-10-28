@@ -155,6 +155,28 @@ int alpha_beta(Board& board, const int depth, const int ply,
 
     if (state.should_stop()) return 0; // result gets discarded, score doesnt matter
 
+    // reverse futility pruning
+    const int static_eval = board.in_check() ? -SCORE_INF : eval(board);
+    if (not is_pv_node and not board.in_check() and depth <= 6 and std::abs(beta) < MATE_BOUND) {
+        if (static_eval - 80*depth >= beta) {
+            return static_eval - 80*depth; // fail soft
+        }
+    }
+
+    // null move pruning
+    if (not is_pv_node and not board.in_check() and depth >= 3 and static_eval >= beta
+            and board.player_has_non_pawn_material() and board.position_history.back().pliesFromLastNull > 1) { 
+        const int reduction = 3 + depth / 4;
+        board.make_null_move();
+        int score = -alpha_beta(board, depth-1-reduction, ply+1, -beta, -beta+1, state, ttable);
+        board.unmake_null_move();
+
+        if (state.stopped) return 0;
+        if (score >= beta) {
+            return score >= MATE_BOUND ? beta : score; // dont report unproven mates
+        }
+    }
+
     // movepicker for TT, killers and MVV-LVA
     MovePicker picker(board, tt_move, state.killers[static_cast<std::size_t>(ply)]);
     int moves_searched = 0;

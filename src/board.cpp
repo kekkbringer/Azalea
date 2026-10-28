@@ -9,6 +9,31 @@
 
 namespace azalea {
 
+[[nodiscard]] bool Board::player_has_non_pawn_material() const {
+    const Bitboard& us = white_to_move ? white_pieces : black_pieces;
+    return ((us & ~(pawns | kings)) != 0);
+}
+
+void Board::make_null_move() {
+    position_history.push_back(position_history.back());
+    auto& state = position_history.back();
+    if (state.en_passant_target != -1) {
+        hash() ^= z_keys.en_passant[static_cast<std::size_t>(en_passant_target()%8)];
+        state.en_passant_target = -1;
+    }
+    hash() ^= z_keys.side_to_move;
+    white_to_move = not white_to_move;
+    state.halfmove_clock++;
+    state.pliesFromLastNull = 0;
+    state.captured = PieceType::Empty;
+    update_checker_pinned();
+}
+
+void Board::unmake_null_move() {
+    white_to_move = not white_to_move;
+    position_history.pop_back();
+}
+
 [[nodiscard]] bool Board::is_pseudolegal(const Move move) const {
     const int from = move.from();
     //const int to   = move.to();
@@ -63,7 +88,8 @@ void Board::update_checker_pinned() {
 [[nodiscard]] bool Board::is_repetition() const {
     const int n_hist = static_cast<int>(position_history.size());
     // only the last 'halfmove_clock' positions can even be a repetition
-    const int stop = std::max(0, n_hist - 1 - halfmove_clock());
+    int stop = std::max(0, n_hist - 1 - halfmove_clock());
+    stop = std::min(stop, position_history.back().pliesFromLastNull);
     // go in increments of 2, to use asymmetry of side_to_move
     for (int i=n_hist-3; i >= stop; i-=2)
         if (position_history[static_cast<std::size_t>(i)].hash == hash()) return true;
@@ -222,6 +248,7 @@ void Board::unmake_move(const Move move) {
 
 void Board::make_move(const Move move) {
     position_history.push_back(position_history.back());
+    position_history.back().pliesFromLastNull++;
 
     const Bitboard from_mask = (1ULL << move.from());
     const Bitboard to_mask = (1ULL << move.to());
