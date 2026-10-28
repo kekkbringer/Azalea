@@ -174,11 +174,12 @@ int eval_template(const Board& b, EvalTrace* t) {
         t->late[PST_START + 5*64 + (bk_idx^56)]--;
     }
 
-    // passed pawns
+    // passed, doubled and isolated pawns
     wp = b.white_pieces & b.pawns;
     bp = b.black_pieces & b.pawns;
     while (wp != 0) {
         const auto sq = static_cast<std::size_t>(pop_lsb(wp));
+        // pased pawns
         if ((PASSED_PAWN_MASK_TABLE[sq] & bp) == 0) {
             early_score += EARLY_PASSED_PAWN[sq/8];
             late_score  +=  LATE_PASSED_PAWN[sq/8];
@@ -191,11 +192,30 @@ int eval_template(const Board& b, EvalTrace* t) {
                 t->late[PASSED_PAWN_KING_DISTANCE + static_cast<std::size_t>(DISTANCE_TABLE[sq][bk_idx])]--;
             }
         }
+        // doubled (or tripled etc)
+        if (more_than_one(FILES[sq%8] & b.white_pieces & b.pawns)) {
+            early_score += EARLY_DOUBLED_PAWN;
+            late_score  += LATE_DOUBLED_PAWN;
+            if constexpr (Trace) {
+                t->early[DOUBLED_PAWN]++;
+                t->late[DOUBLED_PAWN]++;
+            }
+        }
+        // isolated
+        if ((ADJACENT_FILES[sq%8] & b.white_pieces & b.pawns) == 0) {
+            early_score += EARLY_ISOLATED_PAWN;
+            late_score  += LATE_ISOLATED_PAWN;
+            if constexpr (Trace) {
+                t->early[ISOLATED_PAWN]++;
+                t->late[ISOLATED_PAWN]++;
+            }
+        }
     }
     wp = b.white_pieces & b.pawns;
     bp = b.black_pieces & b.pawns;
     while (bp != 0) {
         const auto sq = static_cast<std::size_t>(pop_lsb(bp));
+        // pased pawns
         if ((__builtin_bswap64(PASSED_PAWN_MASK_TABLE[sq^56]) & wp) == 0) {
             early_score -= EARLY_PASSED_PAWN[(sq^56)/8];
             late_score  -=  LATE_PASSED_PAWN[(sq^56)/8];
@@ -206,6 +226,24 @@ int eval_template(const Board& b, EvalTrace* t) {
                 t->late[PASSED_PAWN_START + (sq^56)/8]--;
                 t->late[PASSED_PAWN_KING_DISTANCE + static_cast<std::size_t>(DISTANCE_TABLE[sq][wk_idx])]++;
                 t->late[PASSED_PAWN_KING_DISTANCE + static_cast<std::size_t>(DISTANCE_TABLE[sq][bk_idx])]--;
+            }
+        }
+        // doubled (or tripled etc)
+        if (more_than_one(FILES[sq%8] & b.black_pieces & b.pawns)) {
+            early_score -= EARLY_DOUBLED_PAWN;
+            late_score  -= LATE_DOUBLED_PAWN;
+            if constexpr (Trace) {
+                t->early[DOUBLED_PAWN]--;
+                t->late[DOUBLED_PAWN]--;
+            }
+        }
+        // isolated
+        if ((ADJACENT_FILES[sq%8] & b.black_pieces & b.pawns) == 0) {
+            early_score -= EARLY_ISOLATED_PAWN;
+            late_score  -= LATE_ISOLATED_PAWN;
+            if constexpr (Trace) {
+                t->early[ISOLATED_PAWN]--;
+                t->late[ISOLATED_PAWN]--;
             }
         }
     }
@@ -225,6 +263,53 @@ int eval_template(const Board& b, EvalTrace* t) {
         if constexpr (Trace) {
             t->early[BISHOP_PAIR]--;
             t->late[BISHOP_PAIR]--;
+        }
+    }
+
+    // rooks on open and half open files
+    wr = b.white_pieces & b.rooks;
+    while (wr != 0) {
+        auto sq = static_cast<std::size_t>(pop_lsb(wr));
+        if ((FILES[sq%8] & b.white_pieces & b.pawns) == 0){
+            // at least half open
+            if ((FILES[sq%8] & b.black_pieces & b.pawns) == 0) {
+                early_score += EARLY_ROOK_OPEN;
+                late_score  += LATE_ROOK_OPEN;
+                if constexpr (Trace) {
+                    t->early[ROOK_OPEN]++;
+                    t->late[ROOK_OPEN]++;
+                }
+            } else {
+                early_score += EARLY_ROOK_HALF_OPEN;
+                late_score  += LATE_ROOK_HALF_OPEN;
+                if constexpr (Trace) {
+                    t->early[ROOK_HALF_OPEN]++;
+                    t->late[ROOK_HALF_OPEN]++;
+                }
+            }
+        }
+    }
+
+    br = b.black_pieces & b.rooks;
+    while (br != 0) {
+        auto sq = static_cast<std::size_t>(pop_lsb(br));
+        if ((FILES[sq%8] & b.black_pieces & b.pawns) == 0){
+            // at least half open
+            if ((FILES[sq%8] & b.white_pieces & b.pawns) == 0) {
+                early_score -= EARLY_ROOK_OPEN;
+                late_score  -= LATE_ROOK_OPEN;
+                if constexpr (Trace) {
+                    t->early[ROOK_OPEN]--;
+                    t->late[ROOK_OPEN]--;
+                }
+            } else {
+                early_score -= EARLY_ROOK_HALF_OPEN;
+                late_score  -= LATE_ROOK_HALF_OPEN;
+                if constexpr (Trace) {
+                    t->early[ROOK_HALF_OPEN]--;
+                    t->late[ROOK_HALF_OPEN]--;
+                }
+            }
         }
     }
 

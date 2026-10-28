@@ -11,6 +11,8 @@ enum TraceIndex : int {
     DOUBLED_PAWN,
     PST_START,                                                  // 6 pieces * 64 squares
     BISHOP_PAIR = PST_START + 6 * 64,
+    ROOK_HALF_OPEN,
+    ROOK_OPEN,
     N_TRACE
 };
 
