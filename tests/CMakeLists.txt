@@ -11,11 +11,13 @@ FetchContent_MakeAvailable(Catch2)
 add_executable(azalea_tests
     test_attacks.cpp
     test_board.cpp
+    test_eval.cpp
     test_legality.cpp
     test_make_move.cpp
     test_move.cpp
     test_perft.cpp
     test_repetition.cpp
+    test_setup.cpp
     test_unmake_move.cpp
     test_version.cpp
     test_zobrist.cpp
