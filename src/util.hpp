@@ -17,4 +17,8 @@ inline int pop_lsb(std::uint64_t& b) {
     return sq;
 }
 
+inline bool more_than_one(const std::uint64_t b) {
+    return (b & (b - 1)) != 0;
+}
+
 } // namespace azalea

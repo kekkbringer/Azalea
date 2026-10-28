@@ -37,6 +37,8 @@ struct PositionInfo {
     std::uint8_t castle_rights{15};
     int halfmove_clock{0};
     PieceType captured{PieceType::Empty};
+    Bitboard checkers{0ULL};
+    Bitboard pinned{0ULL};
 };
 
 
@@ -77,11 +79,13 @@ struct Board {
 
     void make_move(const Move);
     void unmake_move(const Move);
+    void update_checker_pinned();
+    [[nodiscard]] Bitboard attacking_to (const int, const Bitboard) const noexcept;
     [[nodiscard]] std::string to_fen() const noexcept;
     [[nodiscard]] PieceType piece_at_square(const int) const noexcept;
     [[nodiscard]] bool is_legal(const Move);
     [[nodiscard]] bool is_attacked(const int, const bool) const;
-    [[nodiscard]] bool in_check() const;
+    [[nodiscard]] bool in_check() const { return position_history.back().checkers != 0; }
     [[nodiscard]] bool is_repetition() const;
 };
 

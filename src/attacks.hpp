@@ -46,6 +46,14 @@ inline constexpr auto king_table = make_leaper_table(
 
 } // namespace detail
 
+// contains the ray (bishop or rook like) between two squares
+// empty if not possible
+[[nodiscard]] Bitboard between(const int sq1, const int sq2);
+
+// contains the line through two squares
+// empty if not possible
+[[nodiscard]] Bitboard line_through(const int sq1, const int sq2);
+
 // Squares attacked by a pawn of the given color standing on `sq`.
 [[nodiscard]] constexpr Bitboard pawn(bool white, int sq) noexcept {
     const auto i = static_cast<std::size_t>(sq);
@@ -65,6 +73,7 @@ inline constexpr auto king_table = make_leaper_table(
 [[nodiscard]] Bitboard bishop(int sq, Bitboard occupied) noexcept;
 [[nodiscard]] Bitboard rook(int sq, Bitboard occupied) noexcept;
 [[nodiscard]] Bitboard queen(int sq, Bitboard occupied) noexcept;
+void init();
 
 } // namespace attacks
 

@@ -3,10 +3,47 @@
 #include "util.hpp"
 #include "zobrist.hpp"
 
+#include <bit>
 #include <iostream>
 #include <sstream>
 
 namespace azalea {
+
+/**
+ * Returns a bitboard containing ALL pieces that are attacking a certain square.
+ */
+[[nodiscard]] Bitboard Board::attacking_to (const int sq, const Bitboard occ) const noexcept {
+    return (attacks::pawn(false, sq) & white_pieces & pawns)
+         | (attacks::pawn(true, sq)  & black_pieces & pawns)
+         | (attacks::knight(sq) & knights)
+         | (attacks::bishop(sq, occ) & (bishops | queens))
+         | (attacks::rook(sq, occ) & (rooks | queens))
+         | (attacks::king(sq) & kings);
+}
+
+/**
+ * Updates the Bitboard containing all checking pieces and all pinned pieces.
+ */
+void Board::update_checker_pinned() {
+    const Bitboard& us = white_to_move ? white_pieces : black_pieces;
+    const Bitboard& them = white_to_move ? black_pieces : white_pieces;
+    const Bitboard occ = white_pieces | black_pieces;
+    const auto king_sq = lsb(us & kings);
+
+    auto& cur = position_history.back();
+    cur.checkers = attacking_to(king_sq, occ) & them;
+
+    // get potential enemy pieces that could pin something to our king
+    Bitboard pot_pinner = (attacks::rook(king_sq, 0)   & them & (rooks   | queens))
+                        | (attacks::bishop(king_sq, 0) & them & (bishops | queens));
+
+    // test all potential pinner
+    cur.pinned = 0ULL;
+    while (pot_pinner != 0) {
+        const Bitboard between = attacks::between(king_sq, pop_lsb(pot_pinner)) & occ;
+        if (std::has_single_bit(between) and (between & us)) cur.pinned |= between;
+    }
+}
 
 [[nodiscard]] bool Board::is_repetition() const {
     const int n_hist = static_cast<int>(position_history.size());
@@ -16,12 +53,6 @@ namespace azalea {
     for (int i=n_hist-3; i >= stop; i-=2)
         if (position_history[static_cast<std::size_t>(i)].hash == hash()) return true;
     return false;
-}
-
-[[nodiscard]] bool Board::in_check() const {
-    const Bitboard& us = white_to_move ? white_pieces : black_pieces;
-    const int king_sq = lsb(us & kings);
-    return is_attacked(king_sq, not white_to_move);
 }
 
 [[nodiscard]] bool Board::is_attacked(const int sq, const bool by_white) const {
@@ -42,17 +73,63 @@ namespace azalea {
     return false;
 }
 
+/**
+ * The move in question must be pseudo legal, this is NOT CHECKED here.
+ */
 [[nodiscard]] bool Board::is_legal(const Move move) {
-    if (move.is_king_side_castle() or move.is_queen_side_castle()) {
-        const int middle = (move.from() + move.to()) / 2;   // f1/d1 or f8/d8
-        if (is_attacked(move.from(), not white_to_move) or
-            is_attacked(middle, not white_to_move)) return false;
+    const Bitboard& us   = white_to_move ? white_pieces : black_pieces;
+    const Bitboard& them = white_to_move ? black_pieces : white_pieces;
+    const int from = move.from();
+    const int to   = move.to();
+    const int king_sq = lsb(us & kings);
+
+    // special case: en-passant
+    if (move.is_en_passant()) {
+        const int captured_sq = white_to_move ? (to-8) : (to+8);
+        // occupied squares with all relevant pieces on their squares after the ep cap
+        const Bitboard occ = ((white_pieces | black_pieces)
+                    ^ (1ULL << from) ^ (1ULL << captured_sq))
+                    | (1ULL << to);
+        const bool pinned_by_rook   = attacks::rook(king_sq, occ)   & them & (rooks   | queens);
+        const bool pinned_by_bishop = attacks::bishop(king_sq, occ) & them & (bishops | queens);
+        return (not pinned_by_rook) and (not pinned_by_bishop);
     }
-    make_move(move);
-    const Bitboard& mover = white_to_move ? black_pieces : white_pieces;
-    const bool legal = not is_attacked(lsb(mover & kings), white_to_move);
-    unmake_move(move);
-    return legal;
+
+    // special case: king move (the king can "shadow" an attacked square)
+    if (from == king_sq) {
+        // the target square and all squares in between must not be attacked
+        if (move.is_king_side_castle()) {
+            if (in_check()) return false;
+            if (white_to_move) return not is_attacked(F1, false) and not is_attacked(G1, false);
+            else return not is_attacked(F8, true) and not is_attacked(G8, true);
+        } else if (move.is_queen_side_castle()) {
+            if (in_check()) return false;
+            if (white_to_move) return not is_attacked(D1, false) and not is_attacked(C1, false);
+            else return not is_attacked(D8, true) and not is_attacked(C8, true);
+        }
+        // occ without out king
+        const Bitboard occ = (white_pieces | black_pieces) ^ (1ULL << king_sq);
+        return not (attacking_to(to, occ) & them);
+    }
+
+    // general case
+    // check evasion
+    if (in_check()) {
+        Bitboard checkers = position_history.back().checkers;
+        // double check -> king must move, already covered above
+        if (more_than_one(checkers)) return false;
+        const auto checker_sq = lsb(checkers);
+        // one checker -> checker must be captured or the atk must be blocked
+        const bool blocking_or_capturing
+            = (1ULL << to) & (attacks::between(king_sq, checker_sq) | checkers);
+        if (not blocking_or_capturing) return false;
+    }
+
+    // not in check
+    // move is legal if the piece is not pinned
+    // or it is pinned but moves along the line between the king and the checker
+    const bool pinned = position_history.back().pinned & (1ULL << from);
+    return (not pinned) or (attacks::line_through(from, king_sq) & (1ULL << to));
 }
 
 void Board::unmake_move(const Move move) {
@@ -248,6 +325,8 @@ void Board::make_move(const Move move) {
 
     white_to_move = not white_to_move;
     hash() ^= z_keys.side_to_move;
+
+    update_checker_pinned();
 }
 
 [[nodiscard]] PieceType Board::piece_at_square(const int sq) const noexcept {
@@ -396,6 +475,8 @@ Board::Board(const std::string_view& fen) {
     // fullmove number
     iss >> substring;
     fullmove_number = std::stoi(substring);
+
+    update_checker_pinned();
 }
 
 

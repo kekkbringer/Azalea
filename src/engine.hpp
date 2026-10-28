@@ -2,6 +2,7 @@
 
 #include "board.hpp"
 #include "perft.hpp"
+#include "attacks.hpp"
 #include "transposition.hpp"
 
 #include <chrono>
@@ -56,6 +57,7 @@ public:
     void stop();
     void wait();
 
+    Engine() { attacks::init(); }
 private:
     TranspositionTable transposition_table;
     Board board{start_fen};

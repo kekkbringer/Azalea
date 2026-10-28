@@ -119,6 +119,9 @@ struct Move {
     [[nodiscard]] constexpr bool is_queen_side_castle() const noexcept {
         return this->flag() == QUEEN_SIDE_CASTLE;
     }
+    [[nodiscard]] constexpr bool is_castling() const noexcept {
+        return is_king_side_castle() or is_queen_side_castle();
+    }
     [[nodiscard]] constexpr bool is_capture() const noexcept {
         return (this->flag() & CAPTURE) != 0;
     }
