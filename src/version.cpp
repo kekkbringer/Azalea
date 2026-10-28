@@ -2,6 +2,6 @@
 
 namespace azalea {
 
-std::string_view version() noexcept { return "0.1.9"; }
+std::string_view version() noexcept { return "0.1.10"; }
 
 } // namespace azalea

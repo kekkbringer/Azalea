@@ -4,12 +4,25 @@
 #include "search_helper.hpp"
 #include "movepicker.hpp"
 
+#include <array>
 #include <chrono>
 #include <algorithm>
 
 namespace azalea {
 
 using ms = std::chrono::milliseconds;
+
+std::array<std::array<int, MAX_PLY>, 256> gen_lmr_table() {
+    std::array<std::array<int, MAX_PLY>, 256> table;
+    for (size_t depth=0; depth<MAX_PLY; depth++) {
+        for (size_t moves=0; moves<256; moves++) {
+            table[depth][moves] = int(0.75 + std::log(depth) * std::log(moves) / 2.25);
+        }
+    }
+    return table;
+}
+
+const auto LMR_TABLE = gen_lmr_table();
 
 /**
  * Keep two killer moves per ply, to add a new move the first is shifted to the
@@ -156,15 +169,16 @@ int alpha_beta(Board& board, const int depth, const int ply,
     if (state.should_stop()) return 0; // result gets discarded, score doesnt matter
 
     // reverse futility pruning
-    const int static_eval = board.in_check() ? -SCORE_INF : eval(board);
-    if (not is_pv_node and not board.in_check() and depth <= 6 and std::abs(beta) < MATE_BOUND) {
+    const bool in_check = board.in_check();
+    const int static_eval = in_check ? -SCORE_INF : eval(board);
+    if (not is_pv_node and not in_check and depth <= 6 and std::abs(beta) < MATE_BOUND) {
         if (static_eval - 80*depth >= beta) {
             return static_eval - 80*depth; // fail soft
         }
     }
 
     // null move pruning
-    if (not is_pv_node and not board.in_check() and depth >= 3 and static_eval >= beta
+    if (not is_pv_node and not in_check and depth >= 3 and static_eval >= beta
             and board.player_has_non_pawn_material() and board.position_history.back().pliesFromLastNull > 1) { 
         const int reduction = 3 + depth / 4;
         board.make_null_move();
@@ -188,6 +202,9 @@ int alpha_beta(Board& board, const int depth, const int ply,
         if (not board.is_legal(m)) continue;
         board.make_move(m);
 
+        // side to move is now the opponent (after move is made)
+        const bool giving_check = board.in_check();
+
         // first move is searched with the full window in PVS
         int score;
         if (moves_searched == 0) {
@@ -195,8 +212,23 @@ int alpha_beta(Board& board, const int depth, const int ply,
 
         // not the first move -> try zero window search
         } else {
-            score = -alpha_beta(board, depth-1, ply+1, -alpha-1, -alpha, state, ttable);
+            // late move reduction, first search with null window
+            int lm_reduction = 0;
+            if (depth >= 3 and moves_searched >= 3 and m.is_quiet() and not in_check and not giving_check) {
+                lm_reduction = LMR_TABLE[static_cast<std::size_t>(depth)][static_cast<std::size_t>(moves_searched)];
+                if (is_pv_node) lm_reduction -= 1; // dont reduce so aggresively in PV nodes
+                lm_reduction = std::clamp(lm_reduction, 0, depth-2); // dont reduce into quiescense search
+            }
+
+            // try zero window search with LMR
+            score = -alpha_beta(board, depth-1-lm_reduction, ply+1, -alpha-1, -alpha, state, ttable);
+
+            // LM reduced search beat alpha, research at full depth (but zero window)
+            if (score > alpha and lm_reduction > 0)
+                score = -alpha_beta(board, depth-1, ply+1, -alpha-1, -alpha, state, ttable);
+
             // the proof has failed, get exact score
+            // if the non-reduced search beats alpha to we are in a PV node
             if (score > alpha and score < beta)
                 score = -alpha_beta(board, depth-1, ply+1, -beta, -alpha, state, ttable);
         }

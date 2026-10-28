@@ -3,6 +3,7 @@
 #include "engine.hpp"
 #include "transposition.hpp"
 
+#include <cmath>
 #include <cstdint>
 
 namespace azalea {
