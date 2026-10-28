@@ -89,7 +89,7 @@ void Board::update_checker_pinned() {
     const int n_hist = static_cast<int>(position_history.size());
     // only the last 'halfmove_clock' positions can even be a repetition
     int stop = std::max(0, n_hist - 1 - halfmove_clock());
-    stop = std::min(stop, position_history.back().pliesFromLastNull);
+    stop = std::max(stop, n_hist - 1 - position_history.back().pliesFromLastNull);
     // go in increments of 2, to use asymmetry of side_to_move
     for (int i=n_hist-3; i >= stop; i-=2)
         if (position_history[static_cast<std::size_t>(i)].hash == hash()) return true;
