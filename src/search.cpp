@@ -2,6 +2,7 @@
 #include "movegeneration.hpp"
 #include "eval.hpp"
 #include "search_helper.hpp"
+#include "movepicker.hpp"
 
 #include <chrono>
 #include <algorithm>
@@ -10,6 +11,22 @@ namespace azalea {
 
 using ms = std::chrono::milliseconds;
 
+/**
+ * Keep two killer moves per ply, to add a new move the first is shifted to the
+ * second slot and the new move is inserted in the first position.
+ */
+void update_killers(SearchState& state, const int ply, const Move move) {
+    auto& k = state.killers[static_cast<std::size_t>(ply)];
+    if (k[0] != move) { // dont add if the move is already here
+        k[1] = k[0];
+        k[0] = move;
+    }
+}
+
+/**
+ * Main search driver with an iterative deeping loop that calls a principle variation
+ * search with exponentially widening aspiration windows.
+ */
 void search(Board& board, const SearchLimits& limits, SearchReporter& reporter, TranspositionTable& ttable, std::stop_token st) {
     SearchState state;
     state.st = st;
@@ -44,9 +61,37 @@ void search(Board& board, const SearchLimits& limits, SearchReporter& reporter, 
     int  best_score = 0;
     std::vector<Move> best_pv;
     for (int depth=1; depth<=max_depth; ++depth) {
+        // determine current alpha and beta
+        int alpha, beta, delta;
+        // if the search is shallow or mate is found search the full window
+        if (depth < 5 or std::abs(best_score) >= MATE_BOUND) {
+            alpha = -SCORE_INF;
+            beta  =  SCORE_INF;
+            delta =  SCORE_INF; // windoe is already full, doesnt need to be widened
+        // otherwise start with 0.5 pawn window centered around score
+        } else {
+            delta = 25; // centipawns to the left and right -> 0.5 pawn window
+            alpha = std::max(best_score - delta, -SCORE_INF);
+            beta  = std::min(best_score + delta,  SCORE_INF);
+        }
 
-        // call search on root node
-        const auto score = alpha_beta(board, depth, 0, -SCORE_INF, SCORE_INF, state, ttable);
+        // call search on root node, might need to restart to widen the window
+        // ----------------------- aspiration window loop ----------------------------
+        int score;
+        while (true) {
+            score = alpha_beta(board, depth, 0, alpha, beta, state, ttable);
+            if (state.stopped) break;
+
+            if (score <= alpha) { // fail low -> true score is lower
+                beta = (alpha + beta) / 2; // this might not be optimal
+                alpha = std::max(score - delta, -SCORE_INF);
+            } else if (score >= beta) { // fail high -> true score is higher
+                beta = std::min(score + delta, SCORE_INF);
+            } else break; // inside the window, score is exact
+
+            // widen window exponentially
+            delta += delta / 2;
+        }
 
         // discard incomplete iterations
         if (state.stopped and depth > 1) break;
@@ -80,6 +125,7 @@ void search(Board& board, const SearchLimits& limits, SearchReporter& reporter, 
 
 int alpha_beta(Board& board, const int depth, const int ply,
                int alpha, int beta, SearchState& state, TranspositionTable& ttable) {
+    const bool is_pv_node = beta - alpha > 1;
     state.pv_length[ply] = ply; // empty PV at this node
 
     // 50 move rule and repetition
@@ -109,34 +155,33 @@ int alpha_beta(Board& board, const int depth, const int ply,
 
     if (state.should_stop()) return 0; // result gets discarded, score doesnt matter
 
-    // generate all legal moves
-    Movelist mlist;
-    generate_pseudolegal_moves(board, mlist);
-
-    // order moves, tt move first, then MVV-LVA
-    int scores[256];
-    for (std::size_t i=0; i<mlist.size(); ++i) scores[i] = score_move_mvv_lva(board, mlist.moves[i], tt_move);
+    // movepicker for TT, killers and MVV-LVA
+    MovePicker picker(board, tt_move, state.killers[static_cast<std::size_t>(ply)]);
+    int moves_searched = 0;
 
     // loop over legal moves
     int best_score = -SCORE_INF;
-    Move best_move{};
-    int moves_searched = 0;
-    for (size_t i=0; i<mlist.size(); ++i) {
-        // find most promising move remaining in the movelist
-        size_t promising = i;
-        for (size_t j=i+1; j<mlist.size(); ++j)
-            if (scores[j] > scores[promising]) promising = j;
-        std::swap(mlist.moves[i], mlist.moves[promising]);
-        std::swap(scores[i], scores[promising]);
-
-        const Move& m = mlist.moves[i];
+    Move best_move{}, m;
+    while ((m = picker.next()) != Move{}) {
         if (not board.is_legal(m)) continue;
-        ++moves_searched;
-
-        ++state.nodes;
         board.make_move(m);
-        int score = -alpha_beta(board, depth-1, ply+1, -beta, -alpha, state, ttable);
+
+        // first move is searched with the full window in PVS
+        int score;
+        if (moves_searched == 0) {
+            score = -alpha_beta(board, depth-1, ply+1, -beta, -alpha, state, ttable);
+
+        // not the first move -> try zero window search
+        } else {
+            score = -alpha_beta(board, depth-1, ply+1, -alpha-1, -alpha, state, ttable);
+            // the proof has failed, get exact score
+            if (score > alpha and score < beta)
+                score = -alpha_beta(board, depth-1, ply+1, -beta, -alpha, state, ttable);
+        }
+
         board.unmake_move(m);
+        ++moves_searched;
+        ++state.nodes;
 
         if (score > best_score) {
             best_score = score;
@@ -145,15 +190,23 @@ int alpha_beta(Board& board, const int depth, const int ply,
             if (score > alpha) {
                 alpha = score;
 
-                // new PV found: m followed by childs PV
-                state.pv_table[ply][ply] = m;
-                // copy childs PV
-                for (int k=ply+1; k<state.pv_length[ply+1]; ++k)
-                    state.pv_table[ply][k] = state.pv_table[ply+1][k];
-                // update PV length
-                state.pv_length[ply] = state.pv_length[ply+1];
+                if (is_pv_node) {
+                    // new PV found: m followed by childs PV
+                    state.pv_table[ply][ply] = m;
+                    // copy childs PV
+                    for (int k=ply+1; k<state.pv_length[ply+1]; ++k)
+                        state.pv_table[ply][k] = state.pv_table[ply+1][k];
+                    // update PV length
+                    state.pv_length[ply] = state.pv_length[ply+1];
+                }
 
-                if (alpha >= beta) break; // beta cutoff
+                // beta cutoff
+                if (alpha >= beta) {
+                    if (not best_move.is_capture() and not m.is_promotion()) {
+                        update_killers(state, ply, best_move);
+                    }
+                    break;
+                }
             }
         }
     }
@@ -201,26 +254,13 @@ int quiescence(Board& board, const int ply, int alpha, int beta, SearchState& st
 
     if (board.is_repetition()) return 0;
 
-    // generate all legal moves
-    Movelist mlist;
-    generate_pseudolegal_moves(board, mlist);
-
-    // MVV-LVA
-    Move hint{};
-    int scores[256];
-    for (std::size_t i=0; i<mlist.size(); ++i) scores[i] = score_move_mvv_lva(board, mlist.moves[i], hint);
+    // movepicker for TT and MVV-LVA
+    MovePicker picker(board, Move{});
+    int moves_searched = 0;
 
     // loop over legal moves
-    int moves_searched = 0;
-    for (size_t i=0; i<mlist.size(); ++i) {
-        // find most promising move remaining in the movelist
-        size_t promising = i;
-        for (size_t j=i+1; j<mlist.size(); ++j)
-            if (scores[j] > scores[promising]) promising = j;
-        std::swap(mlist.moves[i], mlist.moves[promising]);
-        std::swap(scores[i], scores[promising]);
-
-        const Move& m = mlist.moves[i];
+    Move m;
+    while ((m = picker.next()) != Move{}) {
         if (not board.is_legal(m)) continue;
         ++moves_searched;
 
@@ -242,10 +282,7 @@ int quiescence(Board& board, const int ply, int alpha, int beta, SearchState& st
     }
 
     // no legal moves?
-    if (moves_searched == 0) {
-        if (board.in_check()) return -SCORE_MATE + ply; // mate
-        else return 0; // stalemate
-    }
+    if (moves_searched == 0 and board.in_check()) return -SCORE_MATE + ply; // mate
 
     return best_score;
 }

@@ -83,7 +83,8 @@ struct Board {
     [[nodiscard]] Bitboard attacking_to (const int, const Bitboard) const noexcept;
     [[nodiscard]] std::string to_fen() const noexcept;
     [[nodiscard]] PieceType piece_at_square(const int) const noexcept;
-    [[nodiscard]] bool is_legal(const Move);
+    [[nodiscard]] bool is_legal (const Move) const;
+    [[nodiscard]] bool is_pseudolegal (const Move) const;
     [[nodiscard]] bool is_attacked(const int, const bool) const;
     [[nodiscard]] bool in_check() const { return position_history.back().checkers != 0; }
     [[nodiscard]] bool is_repetition() const;

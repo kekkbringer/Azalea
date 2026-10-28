@@ -9,6 +9,21 @@
 
 namespace azalea {
 
+[[nodiscard]] bool Board::is_pseudolegal(const Move move) const {
+    const int from = move.from();
+    //const int to   = move.to();
+
+    const Bitboard from_mask = (1ULL << from);
+    //const Bitboard to_mask   = (1ULL << to);
+    const Bitboard& us = white_to_move ? white_pieces : black_pieces;
+    //const Bitboard& them = white_to_move ? black_pieces : white_pieces;
+
+    // check if a piece is there
+    if ((us & from_mask) == 0) return false;
+    std::cout << "pseudolegality not yet implemented\n";
+    return false;
+}
+
 /**
  * Returns a bitboard containing ALL pieces that are attacking a certain square.
  */
@@ -76,7 +91,7 @@ void Board::update_checker_pinned() {
 /**
  * The move in question must be pseudo legal, this is NOT CHECKED here.
  */
-[[nodiscard]] bool Board::is_legal(const Move move) {
+[[nodiscard]] bool Board::is_legal(const Move move) const {
     const Bitboard& us   = white_to_move ? white_pieces : black_pieces;
     const Bitboard& them = white_to_move ? black_pieces : white_pieces;
     const int from = move.from();

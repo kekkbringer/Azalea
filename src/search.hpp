@@ -20,6 +20,8 @@ struct SearchState {
     Move pv_table[MAX_PLY][MAX_PLY];
     int  pv_length[MAX_PLY];
 
+    std::array<std::array<Move, 2>, MAX_PLY> killers{};
+
     std::chrono::milliseconds elapsed() const {
         return std::chrono::duration_cast<std::chrono::milliseconds>(
                 std::chrono::steady_clock::now() - start);

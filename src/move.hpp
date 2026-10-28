@@ -146,6 +146,7 @@ struct Move {
     }
 
     [[nodiscard]] constexpr bool operator==(const Move&) const noexcept = default;
+    [[nodiscard]] constexpr bool operator!=(const Move&) const noexcept = default;
 };
 
 inline std::string to_uci(const Move& move) {
