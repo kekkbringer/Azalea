@@ -4,6 +4,7 @@
 #include "search_helper.hpp"
 #include "movepicker.hpp"
 
+#include <cmath>
 #include <array>
 #include <chrono>
 #include <algorithm>
@@ -12,16 +13,23 @@ namespace azalea {
 
 using ms = std::chrono::milliseconds;
 
-std::array<std::array<int, MAX_PLY>, 256> gen_lmr_table() {
-    std::array<std::array<int, MAX_PLY>, 256> table;
-    for (size_t depth=0; depth<MAX_PLY; depth++) {
-        for (size_t moves=0; moves<256; moves++) {
+std::array<std::array<int, 256>, MAX_PLY> gen_lmr_table() {
+    std::array<std::array<int, 256>, MAX_PLY> table{};
+    for (size_t depth=1; depth<MAX_PLY; depth++) {
+        for (size_t moves=1; moves<256; moves++) {
             table[depth][moves] = int(0.75 + std::log(depth) * std::log(moves) / 2.25);
         }
     }
     return table;
 }
 
+constexpr std::array<std::size_t, MAX_PLY> gen_lmp_thresholds() {
+    std::array<std::size_t, MAX_PLY> thrs;
+    for (std::size_t i=0; i<MAX_PLY; ++i) thrs[i] = 3 + i * i;
+    return thrs;
+}
+
+constexpr auto LMP_THRESHOLD = gen_lmp_thresholds();
 const auto LMR_TABLE = gen_lmr_table();
 
 /**
@@ -35,6 +43,14 @@ void update_killers(SearchState& state, const int ply, const Move move) {
         k[0] = move;
     }
 }
+
+/**
+ * Update the array for quiet move history heuristic using history gravity.
+ */
+void update_history(int& entry, int bonus) {
+    entry += bonus - entry * std::abs(bonus) / MAX_HISTORY;
+}
+
 
 /**
  * Main search driver with an iterative deeping loop that calls a principle variation
@@ -92,6 +108,7 @@ void search(Board& board, const SearchLimits& limits, SearchReporter& reporter, 
         // ----------------------- aspiration window loop ----------------------------
         int score;
         while (true) {
+            state.seldepth = 0;
             score = alpha_beta(board, depth, 0, alpha, beta, state, ttable);
             if (state.stopped) break;
 
@@ -123,9 +140,12 @@ void search(Board& board, const SearchLimits& limits, SearchReporter& reporter, 
 
         SearchInfo si;
         si.depth = depth;
+        si.seldepth = state.seldepth;
         si.score_cp = best_score;
         si.nodes = state.nodes;
         si.time = std::chrono::duration_cast<ms>(end - state.start);
+        si.nps = state.nodes * 1000 / std::max<std::uint64_t>(static_cast<std::uint64_t>(si.time.count()), 1);
+        si.hashfull = ttable.hashfull();
         si.pv = best_pv;
         reporter.on_info(si);
 
@@ -136,22 +156,31 @@ void search(Board& board, const SearchLimits& limits, SearchReporter& reporter, 
     reporter.on_bestmove(best_move, best_pv.size() > 1 ? best_pv[1] : Move{});
 }
 
+/**
+ * Actual search algorithm. Currently an implementation of a PVS (principle variation search)
+ * with different pruning and reduction heuristics.
+ */
 int alpha_beta(Board& board, const int depth, const int ply,
                int alpha, int beta, SearchState& state, TranspositionTable& ttable) {
     const bool is_pv_node = beta - alpha > 1;
     state.pv_length[ply] = ply; // empty PV at this node
+
+
+    state.seldepth = std::max(ply, state.seldepth);
+
+    if (state.should_stop()) return 0; // result gets discarded, score doesnt matter
 
     // 50 move rule and repetition
     if (ply > 0 and board.halfmove_clock() >= 100) return 0;
     if (ply > 0 and board.is_repetition()) return 0;
 
 
-    // look in transposition table
+    // --------------------------- transposition table -------------------------------------
     const auto tt_entry = ttable.probe(board.hash());
     Move tt_move{};
     if (tt_entry != nullptr) {
         tt_move = tt_entry->move;
-        if (ply > 0 and tt_entry->depth >= depth) {
+        if (not is_pv_node and ply > 0 and tt_entry->depth >= depth) {
             int tt_score = tt_entry->score;
             // adjust tt_score in case of mate
             if (tt_score >=  MATE_BOUND) tt_score -= ply;
@@ -161,13 +190,12 @@ int alpha_beta(Board& board, const int depth, const int ply,
             if (tt_entry->bound == TTentry::Bound::Upper and tt_score <= alpha) return tt_score;
         }
     }
-    const auto original_alpha = alpha;
 
     if (depth <= 0) return quiescence(board, ply, alpha, beta, state);
     if (ply >= MAX_PLY - 1) return eval(board);
 
-    if (state.should_stop()) return 0; // result gets discarded, score doesnt matter
 
+    // --------------------------- node level pruning -------------------------------------
     // reverse futility pruning
     const bool in_check = board.in_check();
     const int static_eval = in_check ? -SCORE_INF : eval(board);
@@ -179,7 +207,7 @@ int alpha_beta(Board& board, const int depth, const int ply,
 
     // null move pruning
     if (not is_pv_node and not in_check and depth >= 3 and static_eval >= beta
-            and board.player_has_non_pawn_material() and board.position_history.back().pliesFromLastNull > 1) { 
+            and board.player_has_non_pawn_material() and board.position_history.back().pliesFromLastNull > 0) { 
         const int reduction = 3 + depth / 4;
         board.make_null_move();
         int score = -alpha_beta(board, depth-1-reduction, ply+1, -beta, -beta+1, state, ttable);
@@ -192,19 +220,37 @@ int alpha_beta(Board& board, const int depth, const int ply,
     }
 
     // movepicker for TT, killers and MVV-LVA
-    MovePicker picker(board, tt_move, state.killers[static_cast<std::size_t>(ply)]);
+    MovePicker picker(board, tt_move, state.killers[static_cast<std::size_t>(ply)], state.history);
     int moves_searched = 0;
 
-    // loop over legal moves
+    // info for history heuristic
+    std::array<Move, 256> quiets_tried;
+    std::size_t num_quiets = 0;
+
+    // -------------------------------- loop over legal moves -----------------------------------
+    const auto original_alpha = alpha;
     int best_score = -SCORE_INF;
     Move best_move{}, m;
+    const int futility_margin = 100 + 100 * depth; // TODO: tune
     while ((m = picker.next()) != Move{}) {
         if (not board.is_legal(m)) continue;
+
+        // late move pruning and futility pruning
+        if (m.is_quiet() and not is_pv_node and not in_check and depth<=6 and best_score > -MATE_BOUND) {
+            // LMP: if a quiet move if late within the order quiet list, it is unlikely to be relevant
+            if (num_quiets>LMP_THRESHOLD[static_cast<std::size_t>(depth)])
+                continue; // skip this late quiet move
+            // futiilty pruning
+            // if the static eval is already so bad, quiet moves are unlikely to rescue us
+            if (static_eval + futility_margin <= alpha and not board.gives_check(m)) continue;
+        }
+
         board.make_move(m);
 
         // side to move is now the opponent (after move is made)
         const bool giving_check = board.in_check();
 
+        // -------------------------------- iterative search call -----------------------------
         // first move is searched with the full window in PVS
         int score;
         if (moves_searched == 0) {
@@ -237,6 +283,9 @@ int alpha_beta(Board& board, const int depth, const int ply,
         ++moves_searched;
         ++state.nodes;
 
+        if (state.stopped) return 0;
+
+        // found a better move? -> do bookeeping
         if (score > best_score) {
             best_score = score;
             best_move = m;
@@ -256,14 +305,31 @@ int alpha_beta(Board& board, const int depth, const int ply,
 
                 // beta cutoff
                 if (alpha >= beta) {
-                    if (not best_move.is_capture() and not m.is_promotion()) {
+                    // quiet move caused a beta cutoff
+                    // -> update killer and history heuristic
+                    if (best_move.is_quiet()) {
+                        const int bonus = std::min(depth * depth * 16, 1024);
+                        const auto us = static_cast<std::size_t>(board.white_to_move);
+
                         update_killers(state, ply, best_move);
+                        update_history(state.history[us][best_move.from()][best_move.to()], bonus);
+
+                        // penalize all quiet moves that were tried before this
+                        // they did not result in a cutoff
+                        for (std::size_t i=0; i<num_quiets; ++i) {
+                            const Move qmove = quiets_tried[i];
+                            update_history(state.history[us][qmove.from()][qmove.to()], -bonus);
+                        }
                     }
                     break;
-                }
-            }
-        }
-    }
+                } // beta cutoff
+            } // raised alpha
+        } // found better move
+        
+        // tried a quiet move and achieved no cutoff?
+        // -> add to tried quiets
+        if (m.is_quiet()) quiets_tried[num_quiets++] = m;
+    } // loop over moves to be searched
 
     // no legal moves?
     if (moves_searched == 0) {
@@ -294,6 +360,8 @@ int alpha_beta(Board& board, const int depth, const int ply,
 }
 
 int quiescence(Board& board, const int ply, int alpha, int beta, SearchState& state) {
+    state.seldepth = std::max(ply, state.seldepth);
+
     const bool in_check = board.in_check();
     int best_score = -SCORE_INF;
     if (not in_check) {
@@ -306,10 +374,9 @@ int quiescence(Board& board, const int ply, int alpha, int beta, SearchState& st
     if (ply >= MAX_PLY - 1) return eval(board);
     if (state.should_stop()) return eval(board);
 
-    if (board.is_repetition()) return 0;
-
     // movepicker for TT and MVV-LVA
-    MovePicker picker(board, Move{});
+    MovePicker picker = in_check ? MovePicker(board, Move{}, std::array<Move, 2>{}, std::array<std::array<std::array<int, 64>, 64>, 2>{})
+                                 : MovePicker(board, Move{});
     int moves_searched = 0;
 
     // loop over legal moves
@@ -317,9 +384,6 @@ int quiescence(Board& board, const int ply, int alpha, int beta, SearchState& st
     while ((m = picker.next()) != Move{}) {
         if (not board.is_legal(m)) continue;
         ++moves_searched;
-
-        // dont search quiet moves
-        if (not in_check and not (m.is_capture() or m.is_queen_promotion())) break;
 
         ++state.nodes;
         board.make_move(m);
@@ -336,7 +400,7 @@ int quiescence(Board& board, const int ply, int alpha, int beta, SearchState& st
     }
 
     // no legal moves?
-    if (moves_searched == 0 and board.in_check()) return -SCORE_MATE + ply; // mate
+    if (moves_searched == 0 and in_check) return -SCORE_MATE + ply; // mate
 
     return best_score;
 }

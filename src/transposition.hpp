@@ -26,6 +26,7 @@ public:
     void clear();
     const TTentry* probe(const std::uint64_t hash) const; // nullptr if not found
     void store(std::uint64_t hash, Move, int score, int depth, TTentry::Bound);
+    int hashfull() const noexcept;
 private:
     std::size_t size;
     std::vector<TTentry> entries;

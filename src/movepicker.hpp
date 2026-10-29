@@ -12,8 +12,9 @@ namespace azalea {
 class MovePicker {
 public:
     // main search -> all moves
-    MovePicker(const Board& b, Move ttm, const std::array<Move, 2>& ks)
-        : board(b), tt_move(ttm), killers(ks) {
+    MovePicker(const Board& b, Move ttm, const std::array<Move, 2>& ks,
+               const std::array<std::array<std::array<int, 64>, 64>, 2>& hist)
+        : board(b), tt_move(ttm), killers(ks), history(&hist) {
             generate_pseudolegal_moves<GenType::All>(board, movelist);
             score_all();
         }
@@ -21,7 +22,7 @@ public:
     // quiescense search -> only captures (and no killers)
     // when in check -> search all moves (evasions)
     MovePicker(const Board& b, Move ttm)
-        : board(b), tt_move(ttm) {
+        : board(b), tt_move(ttm), history{nullptr} {
             if (board.in_check()) generate_pseudolegal_moves<GenType::All>(board, movelist);
             else generate_pseudolegal_moves<GenType::Captures>(board, movelist);
             score_all();
@@ -93,14 +94,16 @@ private:
         if (m == killers[0]) return 90'000;
         if (m == killers[1]) return 80'000;
 
-        // non-killer quiet moves, not ordered yet
-        return 0;
+        // all thats left is the history heuristic
+        if (history == nullptr) return 0;
+        return (*history)[static_cast<std::size_t>(board.white_to_move)][m.from()][m.to()];
     }
 
 
     const Board& board;
     Move tt_move;
     std::array<Move, 2> killers{}; // empty in quiescense search
+    const std::array<std::array<std::array<int, 64>, 64>, 2>* history = nullptr; // nullptr in qsearch
     Movelist movelist;
     std::array<int, 256> scores{};
     std::size_t cur  = 0;

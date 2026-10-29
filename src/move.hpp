@@ -128,7 +128,6 @@ struct Move {
     [[nodiscard]] constexpr bool is_en_passant() const noexcept {
         return this->flag() == EN_PASSANT;
     }
-
     [[nodiscard]] constexpr bool is_promotion() const noexcept {
         return (this->flag() & PROMOTION) != 0;
     }

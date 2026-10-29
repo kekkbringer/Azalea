@@ -15,7 +15,6 @@ private:
     void handle_option(std::istringstream&);
     void handle_position(std::istringstream&);
     void handle_go(std::istringstream&);
-    void handle_setoption(std::istringstream&);
     void on_info(const SearchInfo&) override; // reports "info depth ..."
     void on_bestmove(const Move&, const Move&) override; // reports "bestmove e2e4 ..."
     void send(const std::string_view line);

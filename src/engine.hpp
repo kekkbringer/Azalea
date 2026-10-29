@@ -29,8 +29,11 @@ struct SearchLimits {
  */
 struct SearchInfo {
     int depth;
+    int seldepth;
     int score_cp;
     std::uint64_t nodes;
+    std::uint64_t nps;
+    int hashfull;
     std::chrono::milliseconds time;
     std::vector<Move> pv;
 };
@@ -51,7 +54,7 @@ class Engine {
 public:
     void new_game();
     void set_position(Board&);
-    void set_hash_mb(std::size_t);
+    void set_hash_mb(const std::size_t);
     void start_search(const SearchLimits&, SearchReporter&);
     std::vector<DivideEntry> perft_divide(const int);
     void stop();

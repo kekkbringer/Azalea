@@ -9,6 +9,14 @@
 
 namespace azalea {
 
+// TODO: this is the inefficient way to check if a move gives check
+[[nodiscard]] bool Board::gives_check(const Move move) {
+    make_move(move);
+    const bool gives_check = in_check();
+    unmake_move(move);
+    return gives_check;
+}
+
 [[nodiscard]] bool Board::player_has_non_pawn_material() const {
     const Bitboard& us = white_to_move ? white_pieces : black_pieces;
     return ((us & ~(pawns | kings)) != 0);

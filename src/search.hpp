@@ -3,10 +3,12 @@
 #include "engine.hpp"
 #include "transposition.hpp"
 
-#include <cmath>
 #include <cstdint>
+#include <array>
 
 namespace azalea {
+
+constexpr int MAX_HISTORY = 1024 * 16;
 
 struct SearchState {
     std::stop_token st;
@@ -15,6 +17,7 @@ struct SearchState {
     std::chrono::milliseconds soft{}, hard{};
     std::uint64_t node_limit = 0; // go nodes N
     std::uint64_t nodes = 0;
+    int seldepth = 0;
     std::uint64_t next_check = 2048;
     bool stopped = false;
 
@@ -22,6 +25,7 @@ struct SearchState {
     int  pv_length[MAX_PLY];
 
     std::array<std::array<Move, 2>, MAX_PLY> killers{};
+    std::array<std::array<std::array<int, 64>, 64>, 2> history{};
 
     std::chrono::milliseconds elapsed() const {
         return std::chrono::duration_cast<std::chrono::milliseconds>(

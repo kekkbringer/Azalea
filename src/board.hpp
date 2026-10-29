@@ -39,7 +39,7 @@ struct PositionInfo {
     PieceType captured{PieceType::Empty};
     Bitboard checkers{0ULL};
     Bitboard pinned{0ULL};
-    int pliesFromLastNull{0};
+    int pliesFromLastNull{124}; // something "large" to allow null move pruning early
 };
 
 
@@ -92,6 +92,7 @@ struct Board {
     [[nodiscard]] bool in_check() const { return position_history.back().checkers != 0; }
     [[nodiscard]] bool is_repetition() const;
     [[nodiscard]] bool player_has_non_pawn_material() const;
+    [[nodiscard]] bool gives_check(const Move);
 };
 
 } // namespace azalea

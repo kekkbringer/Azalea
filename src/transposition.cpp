@@ -4,6 +4,15 @@
 
 namespace azalea {
 
+int TranspositionTable::hashfull() const noexcept {
+    int hfull = 0;
+    for (std::uint64_t i=0; i<1000; ++i) {
+        auto& entry = entries[index(i)];
+        if (entry.hash != 0ULL) ++hfull;
+    }
+    return hfull;
+}
+
 void TranspositionTable::resize(const std::size_t mb) {
     size = mb*1024*1024/sizeof(TTentry);
     size = std::max<std::size_t>(1, size);

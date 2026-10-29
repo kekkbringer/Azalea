@@ -29,6 +29,11 @@ void Engine::set_position(Board& b) {
     board = b;
 }
 
+void Engine::set_hash_mb(const std::size_t mb) {
+    stop();
+    transposition_table.resize(mb);
+}
+
 void Engine::start_search(const SearchLimits& limits, SearchReporter& reporter) {
     stop();
     // worker should copy the board once

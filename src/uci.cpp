@@ -6,6 +6,7 @@
 
 #include <string>
 #include <sstream>
+#include <algorithm>
 
 namespace azalea {
 
@@ -33,6 +34,7 @@ void Uci::loop() {
         } else if (cmd == "uci") {
             send("id name Azalea " + std::string(version()));
             send("id author Dominik Steinmetz");
+            send("option name Hash type spin default 16 min 1 max 1024");
             send("uciok");
 
         } else if (cmd == "ucinewgame") {
@@ -146,10 +148,13 @@ std::string Uci::format_score(const int s) {
 void Uci::on_info(const SearchInfo& si) {
     std::string pv_line = " pv ";
     for (const auto& m: si.pv) pv_line += to_uci(m) + " ";
-    send("info depth " + std::to_string(si.depth)
-           + " score " + format_score(si.score_cp)
-           + " nodes " + std::to_string(si.nodes)
-           + " time "  + std::to_string(si.time.count())
+    send("info depth "    + std::to_string(si.depth)
+           + " seldepth " + std::to_string(si.seldepth)
+           + " score "    + format_score(si.score_cp)
+           + " nodes "    + std::to_string(si.nodes)
+           + " nps "      + std::to_string(si.nps)
+           + " hashfull " + std::to_string(si.hashfull)
+           + " time "     + std::to_string(si.time.count())
            + pv_line);
 }
 
@@ -160,9 +165,23 @@ void Uci::on_bestmove(const Move& best, const Move& ponder) {
 }
 
 void Uci::handle_option(std::istringstream& iss) {
-    std::string token;
-    iss >> token;
-    send("info string not implemented yet, option " + token);
+    std::string token, name, value;
+    iss >> token; // "name"
+    while (iss >> token and token != "value")
+        name += (name.empty() ? "" : " ") + token;
+    while (iss >> token)
+        value += (value.empty() ? "" : " ") + token;
+
+    if (name == "Hash") {
+        try {
+            const auto mb = std::clamp(std::stoi(value), 1, 1024);
+            engine.set_hash_mb(static_cast<std::size_t>(mb));
+        } catch (const std::exception&) {
+            send("info string invalid value for Hash: " + value);
+        }
+    } else {
+        send("info string unknown option " + name);
+    }
 }
 
 } // namespace azalea
