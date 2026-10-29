@@ -160,7 +160,7 @@ void search(Board& board, const SearchLimits& limits, SearchReporter& reporter, 
  * Actual search algorithm. Currently an implementation of a PVS (principle variation search)
  * with different pruning and reduction heuristics.
  */
-int alpha_beta(Board& board, const int depth, const int ply,
+int alpha_beta(Board& board, int depth, const int ply,
                int alpha, int beta, SearchState& state, TranspositionTable& ttable) {
     const bool is_pv_node = beta - alpha > 1;
     state.pv_length[ply] = ply; // empty PV at this node
@@ -218,6 +218,11 @@ int alpha_beta(Board& board, const int depth, const int ply,
             return score >= MATE_BOUND ? beta : score; // dont report unproven mates
         }
     }
+
+    // internal iterative reduction
+    // if this node has no TT it is most likely not important if it turns out to be
+    // important, the next iterative deepening loop will search it and a TT move will be present
+    if (tt_move == Move{} and depth >= 4) depth -=1;
 
     // movepicker for TT, killers and MVV-LVA
     MovePicker picker(board, tt_move, state.killers[static_cast<std::size_t>(ply)], state.history);
