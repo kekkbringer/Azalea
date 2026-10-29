@@ -2,6 +2,7 @@
 #include "attacks.hpp"
 #include "util.hpp"
 #include "zobrist.hpp"
+#include "eval.hpp"
 
 #include <bit>
 #include <iostream>
@@ -274,24 +275,127 @@ void Board::make_move(const Move move) {
     const size_t our_color_offset   = white_to_move ? 0 : 6;
     const size_t their_color_offset = white_to_move ? 6 : 0;
 
+    auto& early_score = position_history.back().early_score;
+    auto& late_score = position_history.back().late_score;
+
     switch (captured_piece) {
-        case PieceType::Pawn:   { pawns   &= ~to_mask; hash() ^= z_keys.piece_square[their_color_offset+0][move.to()]; break; }
-        case PieceType::Knight: { knights &= ~to_mask; hash() ^= z_keys.piece_square[their_color_offset+1][move.to()]; break; }
-        case PieceType::Bishop: { bishops &= ~to_mask; hash() ^= z_keys.piece_square[their_color_offset+2][move.to()]; break; }
-        case PieceType::Rook:   { rooks   &= ~to_mask; hash() ^= z_keys.piece_square[their_color_offset+3][move.to()]; break; }
-        case PieceType::Queen:  { queens  &= ~to_mask; hash() ^= z_keys.piece_square[their_color_offset+4][move.to()]; break; }
-        case PieceType::King:   { kings   &= ~to_mask; hash() ^= z_keys.piece_square[their_color_offset+5][move.to()]; break; }
+        case PieceType::Pawn: {
+            early_score += white_to_move ? EARLY_PAWN_SQ[static_cast<std::size_t>(move.to())^56] : -EARLY_PAWN_SQ[static_cast<std::size_t>(move.to())];
+            late_score  += white_to_move ? LATE_PAWN_SQ[static_cast<std::size_t>(move.to())^56] : -LATE_PAWN_SQ[static_cast<std::size_t>(move.to())];
+            early_score += white_to_move ? EARLY_PAWN_EVAL : -EARLY_PAWN_EVAL;
+            late_score  += white_to_move ? LATE_PAWN_EVAL : -LATE_PAWN_EVAL;
+            pawns   &= ~to_mask; hash() ^= z_keys.piece_square[their_color_offset+0][move.to()];
+            break;
+        }
+        case PieceType::Knight: {
+            early_score += white_to_move ? EARLY_KNIGHT_SQ[static_cast<std::size_t>(move.to())^56] : -EARLY_KNIGHT_SQ[static_cast<std::size_t>(move.to())];
+            late_score  += white_to_move ? LATE_KNIGHT_SQ[static_cast<std::size_t>(move.to())^56] : -LATE_KNIGHT_SQ[static_cast<std::size_t>(move.to())];
+            early_score += white_to_move ? EARLY_KNIGHT_EVAL : -EARLY_KNIGHT_EVAL;
+            late_score  += white_to_move ? LATE_KNIGHT_EVAL : -LATE_KNIGHT_EVAL;
+            knights &= ~to_mask; hash() ^= z_keys.piece_square[their_color_offset+1][move.to()];
+            break;
+        }
+        case PieceType::Bishop: {
+            early_score += white_to_move ? EARLY_BISHOP_SQ[static_cast<std::size_t>(move.to())^56] : -EARLY_BISHOP_SQ[static_cast<std::size_t>(move.to())];
+            late_score  += white_to_move ? LATE_BISHOP_SQ[static_cast<std::size_t>(move.to())^56] : -LATE_BISHOP_SQ[static_cast<std::size_t>(move.to())];
+            early_score += white_to_move ? EARLY_BISHOP_EVAL : -EARLY_BISHOP_EVAL;
+            late_score  += white_to_move ? LATE_BISHOP_EVAL : -LATE_BISHOP_EVAL;
+            bishops &= ~to_mask; hash() ^= z_keys.piece_square[their_color_offset+2][move.to()];
+            break;
+        }
+        case PieceType::Rook: {
+            early_score += white_to_move ? EARLY_ROOK_SQ[static_cast<std::size_t>(move.to())^56] : -EARLY_ROOK_SQ[static_cast<std::size_t>(move.to())];
+            late_score  += white_to_move ? LATE_ROOK_SQ[static_cast<std::size_t>(move.to())^56] : -LATE_ROOK_SQ[static_cast<std::size_t>(move.to())];
+            early_score += white_to_move ? EARLY_ROOK_EVAL : -EARLY_ROOK_EVAL;
+            late_score  += white_to_move ? LATE_ROOK_EVAL : -LATE_ROOK_EVAL;
+            rooks   &= ~to_mask; hash() ^= z_keys.piece_square[their_color_offset+3][move.to()];
+            break;
+        }
+        case PieceType::Queen: {
+            early_score += white_to_move ? EARLY_QUEEN_SQ[static_cast<std::size_t>(move.to())^56] : -EARLY_QUEEN_SQ[static_cast<std::size_t>(move.to())];
+            late_score  += white_to_move ? LATE_QUEEN_SQ[static_cast<std::size_t>(move.to())^56] : -LATE_QUEEN_SQ[static_cast<std::size_t>(move.to())];
+            early_score += white_to_move ? EARLY_QUEEN_EVAL : -EARLY_QUEEN_EVAL;
+            late_score  += white_to_move ? LATE_QUEEN_EVAL : -LATE_QUEEN_EVAL;
+            queens  &= ~to_mask; hash() ^= z_keys.piece_square[their_color_offset+4][move.to()];
+            break;
+        }
+        case PieceType::King: {
+            //early_score += white_to_move ? EARLY_KING_SQ[static_cast<std::size_t>(move.to())^56] : -EARLY_KING_SQ[static_cast<std::size_t>(move.to()];
+            //late_score  += white_to_move ? LATE_KING_SQ[static_cast<std::size_t>(move.to())^56] : -LATE_KING_SQ[static_cast<std::size_t>(move.to()];
+            //kings   &= ~to_mask; hash() ^= z_keys.piece_square[their_color_offset+5][move.to()];
+            break;
+        }
         case PieceType::Empty:  break;
     }
 
     switch (moved_piece) {
-        case PieceType::Pawn:   { pawns   ^= from_mask; pawns   |= to_mask; hash() ^= z_keys.piece_square[our_color_offset+0][move.to()]; hash() ^= z_keys.piece_square[our_color_offset+0][move.from()]; break; }
-        case PieceType::Knight: { knights ^= from_mask; knights |= to_mask; hash() ^= z_keys.piece_square[our_color_offset+1][move.to()]; hash() ^= z_keys.piece_square[our_color_offset+1][move.from()]; break; }
-        case PieceType::Bishop: { bishops ^= from_mask; bishops |= to_mask; hash() ^= z_keys.piece_square[our_color_offset+2][move.to()]; hash() ^= z_keys.piece_square[our_color_offset+2][move.from()]; break; }
-        case PieceType::Rook:   { rooks   ^= from_mask; rooks   |= to_mask; hash() ^= z_keys.piece_square[our_color_offset+3][move.to()]; hash() ^= z_keys.piece_square[our_color_offset+3][move.from()]; break; }
-        case PieceType::Queen:  { queens  ^= from_mask; queens  |= to_mask; hash() ^= z_keys.piece_square[our_color_offset+4][move.to()]; hash() ^= z_keys.piece_square[our_color_offset+4][move.from()]; break; }
-        case PieceType::King:   { kings   ^= from_mask; kings   |= to_mask; hash() ^= z_keys.piece_square[our_color_offset+5][move.to()]; hash() ^= z_keys.piece_square[our_color_offset+5][move.from()]; break; }
-        case PieceType::Empty:  break;
+        case PieceType::Pawn: {
+            pawns ^= from_mask;
+            pawns |= to_mask;
+            hash() ^= z_keys.piece_square[our_color_offset+0][move.to()];
+            hash() ^= z_keys.piece_square[our_color_offset+0][move.from()];
+            early_score += white_to_move ? EARLY_PAWN_SQ[static_cast<std::size_t>(move.to())]    - EARLY_PAWN_SQ[static_cast<std::size_t>(move.from())]
+                                        : -EARLY_PAWN_SQ[static_cast<std::size_t>(move.to())^56] + EARLY_PAWN_SQ[static_cast<std::size_t>(move.from())^56];
+            late_score  += white_to_move ?  LATE_PAWN_SQ[static_cast<std::size_t>(move.to())]    -  LATE_PAWN_SQ[static_cast<std::size_t>(move.from())]
+                                        :  -LATE_PAWN_SQ[static_cast<std::size_t>(move.to())^56] +  LATE_PAWN_SQ[static_cast<std::size_t>(move.from())^56];
+            break;
+        }
+        case PieceType::Knight: {
+            knights ^= from_mask;
+            knights |= to_mask;
+            hash() ^= z_keys.piece_square[our_color_offset+1][move.to()];
+            hash() ^= z_keys.piece_square[our_color_offset+1][move.from()];
+            early_score += white_to_move ? EARLY_KNIGHT_SQ[static_cast<std::size_t>(move.to())]    - EARLY_KNIGHT_SQ[static_cast<std::size_t>(move.from())]
+                                        : -EARLY_KNIGHT_SQ[static_cast<std::size_t>(move.to())^56] + EARLY_KNIGHT_SQ[static_cast<std::size_t>(move.from())^56];
+            late_score  += white_to_move ?  LATE_KNIGHT_SQ[static_cast<std::size_t>(move.to())]    -  LATE_KNIGHT_SQ[static_cast<std::size_t>(move.from())]
+                                        :  -LATE_KNIGHT_SQ[static_cast<std::size_t>(move.to())^56] +  LATE_KNIGHT_SQ[static_cast<std::size_t>(move.from())^56];
+            break;
+        }
+        case PieceType::Bishop: {
+            bishops ^= from_mask;
+            bishops |= to_mask;
+            hash() ^= z_keys.piece_square[our_color_offset+2][move.to()];
+            hash() ^= z_keys.piece_square[our_color_offset+2][move.from()];
+            early_score += white_to_move ? EARLY_BISHOP_SQ[static_cast<std::size_t>(move.to())]    - EARLY_BISHOP_SQ[static_cast<std::size_t>(move.from())]
+                                        : -EARLY_BISHOP_SQ[static_cast<std::size_t>(move.to())^56] + EARLY_BISHOP_SQ[static_cast<std::size_t>(move.from())^56];
+            late_score  += white_to_move ?  LATE_BISHOP_SQ[static_cast<std::size_t>(move.to())]    -  LATE_BISHOP_SQ[static_cast<std::size_t>(move.from())]
+                                        :  -LATE_BISHOP_SQ[static_cast<std::size_t>(move.to())^56] +  LATE_BISHOP_SQ[static_cast<std::size_t>(move.from())^56];
+            break;
+        }
+        case PieceType::Rook:   {
+            rooks ^= from_mask;
+            rooks |= to_mask;
+            hash() ^= z_keys.piece_square[our_color_offset+3][move.to()];
+            hash() ^= z_keys.piece_square[our_color_offset+3][move.from()];
+            early_score += white_to_move ? EARLY_ROOK_SQ[static_cast<std::size_t>(move.to())]    - EARLY_ROOK_SQ[static_cast<std::size_t>(move.from())]
+                                        : -EARLY_ROOK_SQ[static_cast<std::size_t>(move.to())^56] + EARLY_ROOK_SQ[static_cast<std::size_t>(move.from())^56];
+            late_score  += white_to_move ?  LATE_ROOK_SQ[static_cast<std::size_t>(move.to())]    -  LATE_ROOK_SQ[static_cast<std::size_t>(move.from())]
+                                        :  -LATE_ROOK_SQ[static_cast<std::size_t>(move.to())^56] +  LATE_ROOK_SQ[static_cast<std::size_t>(move.from())^56];
+            break;
+        }
+        case PieceType::Queen:  {
+            queens  ^= from_mask;
+            queens  |= to_mask;
+            hash() ^= z_keys.piece_square[our_color_offset+4][move.to()];
+            hash() ^= z_keys.piece_square[our_color_offset+4][move.from()];
+            early_score += white_to_move ? EARLY_QUEEN_SQ[static_cast<std::size_t>(move.to())]    - EARLY_QUEEN_SQ[static_cast<std::size_t>(move.from())]
+                                        : -EARLY_QUEEN_SQ[static_cast<std::size_t>(move.to())^56] + EARLY_QUEEN_SQ[static_cast<std::size_t>(move.from())^56];
+            late_score  += white_to_move ?  LATE_QUEEN_SQ[static_cast<std::size_t>(move.to())]    -  LATE_QUEEN_SQ[static_cast<std::size_t>(move.from())]
+                                        :  -LATE_QUEEN_SQ[static_cast<std::size_t>(move.to())^56] +  LATE_QUEEN_SQ[static_cast<std::size_t>(move.from())^56];
+            break;
+        }
+        case PieceType::King:   {
+            kings   ^= from_mask;
+            kings   |= to_mask;
+            hash() ^= z_keys.piece_square[our_color_offset+5][move.to()];
+            hash() ^= z_keys.piece_square[our_color_offset+5][move.from()];
+            early_score += white_to_move ? EARLY_KING_SQ[static_cast<std::size_t>(move.to())]    - EARLY_KING_SQ[static_cast<std::size_t>(move.from())]
+                                        : -EARLY_KING_SQ[static_cast<std::size_t>(move.to())^56] + EARLY_KING_SQ[static_cast<std::size_t>(move.from())^56];
+            late_score  += white_to_move ?  LATE_KING_SQ[static_cast<std::size_t>(move.to())]    -  LATE_KING_SQ[static_cast<std::size_t>(move.from())]
+                                        :  -LATE_KING_SQ[static_cast<std::size_t>(move.to())^56] +  LATE_KING_SQ[static_cast<std::size_t>(move.from())^56];
+            break;
+        }
+        case PieceType::Empty: break;
     }
 
     if (move.is_en_passant()) {
@@ -301,6 +405,10 @@ void Board::make_move(const Move move) {
         captured() = PieceType::Pawn;
         // fix wrong hash modification and do the proper one
         hash() ^= z_keys.piece_square[their_color_offset+0][static_cast<std::size_t>(lsb(shifted))];
+        early_score += white_to_move ? EARLY_PAWN_SQ[lsb(shifted)^56] : -EARLY_PAWN_SQ[lsb(shifted)];
+        late_score  += white_to_move ? LATE_PAWN_SQ[lsb(shifted)^56] : -LATE_PAWN_SQ[lsb(shifted)];
+        early_score += white_to_move ? EARLY_PAWN_EVAL : -EARLY_PAWN_EVAL;
+        late_score  += white_to_move ? LATE_PAWN_EVAL : -LATE_PAWN_EVAL;
     }
 
     if (move.is_king_side_castle()) {
@@ -309,11 +417,15 @@ void Board::make_move(const Move move) {
             white_pieces ^= (1ULL << F1) | (1ULL << H1);
             hash() ^= z_keys.piece_square[3][F1];
             hash() ^= z_keys.piece_square[3][H1];
+            early_score += EARLY_ROOK_SQ[static_cast<std::size_t>(F1)] - EARLY_ROOK_SQ[static_cast<std::size_t>(H1)];
+            late_score  +=  LATE_ROOK_SQ[static_cast<std::size_t>(F1)] -  LATE_ROOK_SQ[static_cast<std::size_t>(H1)];
         } else { // black to move
             rooks ^= (1ULL << F8) | (1ULL << H8);
             black_pieces ^= (1ULL << F8) | (1ULL << H8);
             hash() ^= z_keys.piece_square[9][F8];
             hash() ^= z_keys.piece_square[9][H8];
+            early_score -= EARLY_ROOK_SQ[static_cast<std::size_t>(F8)^56] - EARLY_ROOK_SQ[static_cast<std::size_t>(H8)^56];
+            late_score  -=  LATE_ROOK_SQ[static_cast<std::size_t>(F8)^56] -  LATE_ROOK_SQ[static_cast<std::size_t>(H8)^56];
         }
     } else if (move.is_queen_side_castle()) {
         if (white_to_move) {
@@ -321,15 +433,19 @@ void Board::make_move(const Move move) {
             white_pieces ^= (1ULL << A1) | (1ULL << D1);
             hash() ^= z_keys.piece_square[3][A1];
             hash() ^= z_keys.piece_square[3][D1];
+            early_score += EARLY_ROOK_SQ[static_cast<std::size_t>(D1)] - EARLY_ROOK_SQ[static_cast<std::size_t>(A1)];
+            late_score  +=  LATE_ROOK_SQ[static_cast<std::size_t>(D1)] -  LATE_ROOK_SQ[static_cast<std::size_t>(A1)];
         } else { // black to move
             rooks ^= (1ULL << A8) | (1ULL << D8);
             black_pieces ^= (1ULL << A8) | (1ULL << D8);
             hash() ^= z_keys.piece_square[9][A8];
             hash() ^= z_keys.piece_square[9][D8];
+            early_score -= EARLY_ROOK_SQ[static_cast<std::size_t>(D8)^56] - EARLY_ROOK_SQ[static_cast<std::size_t>(A8)^56];
+            late_score  -=  LATE_ROOK_SQ[static_cast<std::size_t>(D8)^56] -  LATE_ROOK_SQ[static_cast<std::size_t>(A8)^56];
         }
     }
     hash() ^= z_keys.castling[castle_rights()];
-    if (move.from() == E1)
+    if (move.from() == E1) 
         castle_rights() &= static_cast<std::uint8_t>(~(WHITE_SHORT | WHITE_LONG));
     else if (move.from() == A1 or move.to() == A1)
         castle_rights() &= static_cast<std::uint8_t>(~WHITE_LONG);
@@ -344,12 +460,45 @@ void Board::make_move(const Move move) {
     hash() ^= z_keys.castling[castle_rights()];
 
     if (move.is_promotion()) {
+        // remove the pawn
         pawns ^= to_mask;
         hash() ^= z_keys.piece_square[our_color_offset][move.to()];
-        if (move.is_knight_promotion()) { knights |= to_mask; hash() ^= z_keys.piece_square[our_color_offset+1][move.to()]; }
-        if (move.is_bishop_promotion()) { bishops |= to_mask; hash() ^= z_keys.piece_square[our_color_offset+2][move.to()]; }
-        if (move.is_rook_promotion())   { rooks   |= to_mask; hash() ^= z_keys.piece_square[our_color_offset+3][move.to()]; }
-        if (move.is_queen_promotion())  { queens  |= to_mask; hash() ^= z_keys.piece_square[our_color_offset+4][move.to()]; }
+        early_score += white_to_move ? -EARLY_PAWN_SQ[static_cast<std::size_t>(move.to())] : EARLY_PAWN_SQ[static_cast<std::size_t>(move.to())^56];
+        late_score  += white_to_move ? -LATE_PAWN_SQ[static_cast<std::size_t>(move.to())]  : LATE_PAWN_SQ[static_cast<std::size_t>(move.to())^56];
+        early_score += white_to_move ? -EARLY_PAWN_EVAL : EARLY_PAWN_EVAL;
+        late_score  += white_to_move ? -LATE_PAWN_EVAL  : LATE_PAWN_EVAL;
+        if (move.is_knight_promotion()) {
+            knights |= to_mask;
+            hash() ^= z_keys.piece_square[our_color_offset+1][move.to()];
+            early_score += white_to_move ? EARLY_KNIGHT_SQ[static_cast<std::size_t>(move.to())] : -EARLY_KNIGHT_SQ[static_cast<std::size_t>(move.to())^56];
+            late_score  += white_to_move ? LATE_KNIGHT_SQ[static_cast<std::size_t>(move.to())]  : -LATE_KNIGHT_SQ[static_cast<std::size_t>(move.to())^56];
+            early_score += white_to_move ? EARLY_KNIGHT_EVAL : -EARLY_KNIGHT_EVAL;
+            late_score  += white_to_move ? LATE_KNIGHT_EVAL  : -LATE_KNIGHT_EVAL;
+        }
+        if (move.is_bishop_promotion()) {
+            bishops |= to_mask;
+            hash() ^= z_keys.piece_square[our_color_offset+2][move.to()];
+            early_score += white_to_move ? EARLY_BISHOP_SQ[static_cast<std::size_t>(move.to())] : -EARLY_BISHOP_SQ[static_cast<std::size_t>(move.to())^56];
+            late_score  += white_to_move ? LATE_BISHOP_SQ[static_cast<std::size_t>(move.to())]  : -LATE_BISHOP_SQ[static_cast<std::size_t>(move.to())^56];
+            early_score += white_to_move ? EARLY_BISHOP_EVAL : -EARLY_BISHOP_EVAL;
+            late_score  += white_to_move ? LATE_BISHOP_EVAL  : -LATE_BISHOP_EVAL;
+        }
+        if (move.is_rook_promotion()) {
+            rooks |= to_mask;
+            hash() ^= z_keys.piece_square[our_color_offset+3][move.to()];
+            early_score += white_to_move ? EARLY_ROOK_SQ[static_cast<std::size_t>(move.to())] : -EARLY_ROOK_SQ[static_cast<std::size_t>(move.to())^56];
+            late_score  += white_to_move ? LATE_ROOK_SQ[static_cast<std::size_t>(move.to())]  : -LATE_ROOK_SQ[static_cast<std::size_t>(move.to())^56];
+            early_score += white_to_move ? EARLY_ROOK_EVAL : -EARLY_ROOK_EVAL;
+            late_score  += white_to_move ? LATE_ROOK_EVAL  : -LATE_ROOK_EVAL;
+        }
+        if (move.is_queen_promotion()) {
+            queens |= to_mask;
+            hash() ^= z_keys.piece_square[our_color_offset+4][move.to()];
+            early_score += white_to_move ? EARLY_QUEEN_SQ[static_cast<std::size_t>(move.to())] : -EARLY_QUEEN_SQ[static_cast<std::size_t>(move.to())^56];
+            late_score  += white_to_move ? LATE_QUEEN_SQ[static_cast<std::size_t>(move.to())]  : -LATE_QUEEN_SQ[static_cast<std::size_t>(move.to())^56];
+            early_score += white_to_move ? EARLY_QUEEN_EVAL : -EARLY_QUEEN_EVAL;
+            late_score  += white_to_move ? LATE_QUEEN_EVAL  : -LATE_QUEEN_EVAL;
+        }
     }
 
     if (en_passant_target() != -1)
@@ -423,6 +572,12 @@ Board::Board(const std::string_view& fen) {
     std::istringstream iss(std::string{fen});
     std::string substring;
 
+    auto& early_score = position_history.back().early_score;
+    auto& late_score = position_history.back().late_score;
+
+    early_score = 0;
+    late_score = 0;
+
     hash() = 0ULL;
 
     // piece placement
@@ -451,20 +606,123 @@ Board::Board(const std::string_view& fen) {
                           }
                       }
 
-            case 'P': { hash() ^= z_keys.piece_square[ 0][static_cast<std::size_t>(index)]; ++line_cap; white_pieces |= (1ULL<<index); pawns |= (1ULL<<index); ++index; continue;}
-            case 'N': { hash() ^= z_keys.piece_square[ 1][static_cast<std::size_t>(index)]; ++line_cap; white_pieces |= (1ULL<<index); knights |= (1ULL<<index); ++index; continue; }
-            case 'B': { hash() ^= z_keys.piece_square[ 2][static_cast<std::size_t>(index)]; ++line_cap; white_pieces |= (1ULL<<index); bishops |= (1ULL<<index); ++index; continue; }
-            case 'R': { hash() ^= z_keys.piece_square[ 3][static_cast<std::size_t>(index)]; ++line_cap; white_pieces |= (1ULL<<index); rooks |= (1ULL<<index); ++index; continue; }
-            case 'Q': { hash() ^= z_keys.piece_square[ 4][static_cast<std::size_t>(index)]; ++line_cap; white_pieces |= (1ULL<<index); queens |= (1ULL<<index); ++index; continue; }
-            case 'K': { hash() ^= z_keys.piece_square[ 5][static_cast<std::size_t>(index)]; ++line_cap; white_pieces |= (1ULL<<index); kings |= (1ULL<<index); ++index; continue; }
-            case 'p': { hash() ^= z_keys.piece_square[ 6][static_cast<std::size_t>(index)]; ++line_cap; black_pieces |= (1ULL<<index); pawns |= (1ULL<<index); ++index; continue; }
-            case 'n': { hash() ^= z_keys.piece_square[ 7][static_cast<std::size_t>(index)]; ++line_cap; black_pieces |= (1ULL<<index); knights |= (1ULL<<index); ++index; continue; }
-            case 'b': { hash() ^= z_keys.piece_square[ 8][static_cast<std::size_t>(index)]; ++line_cap; black_pieces |= (1ULL<<index); bishops |= (1ULL<<index); ++index; continue; }
-            case 'r': { hash() ^= z_keys.piece_square[ 9][static_cast<std::size_t>(index)]; ++line_cap; black_pieces |= (1ULL<<index); rooks |= (1ULL<<index); ++index; continue; }
-            case 'q': { hash() ^= z_keys.piece_square[10][static_cast<std::size_t>(index)]; ++line_cap; black_pieces |= (1ULL<<index); queens |= (1ULL<<index); ++index; continue; }
-            case 'k': { hash() ^= z_keys.piece_square[11][static_cast<std::size_t>(index)]; ++line_cap; black_pieces |= (1ULL<<index); kings |= (1ULL<<index); ++index; continue; }
-            default: {
-                         std::cout << "Unknown symbol in FEN" << std::endl;
+            case 'P': {
+                hash() ^= z_keys.piece_square[0][static_cast<std::size_t>(index)];
+                white_pieces |= (1ULL<<index);
+                pawns |= (1ULL<<index);
+                early_score += EARLY_PAWN_EVAL;
+                late_score  += LATE_PAWN_EVAL;
+                early_score += EARLY_PAWN_SQ[static_cast<std::size_t>(index)];
+                late_score  += LATE_PAWN_SQ[static_cast<std::size_t>(index)];
+                ++index; ++line_cap; continue;
+            }
+            case 'N': {
+                hash() ^= z_keys.piece_square[ 1][static_cast<std::size_t>(index)];
+                white_pieces |= (1ULL<<index);
+                knights |= (1ULL<<index);
+                early_score += EARLY_KNIGHT_EVAL;
+                late_score  += LATE_KNIGHT_EVAL;
+                early_score += EARLY_KNIGHT_SQ[static_cast<std::size_t>(index)];
+                late_score  += LATE_KNIGHT_SQ[static_cast<std::size_t>(index)];
+                ++index; ++line_cap; continue;
+            }
+            case 'B': {
+                hash() ^= z_keys.piece_square[ 2][static_cast<std::size_t>(index)];
+                white_pieces |= (1ULL<<index);
+                bishops |= (1ULL<<index);
+                early_score += EARLY_BISHOP_EVAL;
+                late_score  += LATE_BISHOP_EVAL;
+                early_score += EARLY_BISHOP_SQ[static_cast<std::size_t>(index)];
+                late_score  += LATE_BISHOP_SQ[static_cast<std::size_t>(index)];
+                ++index; ++line_cap; continue;
+            }
+            case 'R': {
+                hash() ^= z_keys.piece_square[ 3][static_cast<std::size_t>(index)];
+                white_pieces |= (1ULL<<index);
+                rooks |= (1ULL<<index);
+                early_score += EARLY_ROOK_EVAL;
+                late_score  += LATE_ROOK_EVAL;
+                early_score += EARLY_ROOK_SQ[static_cast<std::size_t>(index)];
+                late_score  += LATE_ROOK_SQ[static_cast<std::size_t>(index)];
+                ++index; ++line_cap; continue;
+            }
+            case 'Q': {
+                hash() ^= z_keys.piece_square[ 4][static_cast<std::size_t>(index)];
+                white_pieces |= (1ULL<<index);
+                queens |= (1ULL<<index);
+                early_score += EARLY_QUEEN_EVAL;
+                late_score  += LATE_QUEEN_EVAL;
+                early_score += EARLY_QUEEN_SQ[static_cast<std::size_t>(index)];
+                late_score  += LATE_QUEEN_SQ[static_cast<std::size_t>(index)];
+                ++index; ++line_cap; continue;
+            }
+            case 'K': {
+                hash() ^= z_keys.piece_square[ 5][static_cast<std::size_t>(index)];
+                white_pieces |= (1ULL<<index);
+                kings |= (1ULL<<index);
+                early_score += EARLY_KING_SQ[static_cast<std::size_t>(index)];
+                late_score  += LATE_KING_SQ[static_cast<std::size_t>(index)];
+                ++index; ++line_cap; continue;
+            }
+            case 'p': {
+                hash() ^= z_keys.piece_square[ 6][static_cast<std::size_t>(index)];
+                black_pieces |= (1ULL<<index);
+                pawns |= (1ULL<<index);
+                early_score -= EARLY_PAWN_EVAL;
+                late_score  -= LATE_PAWN_EVAL;
+                early_score -= EARLY_PAWN_SQ[static_cast<std::size_t>(index)^56];
+                late_score  -= LATE_PAWN_SQ[static_cast<std::size_t>(index)^56];
+                ++index; ++line_cap; continue;
+            }
+            case 'n': {
+                hash() ^= z_keys.piece_square[ 7][static_cast<std::size_t>(index)];
+                black_pieces |= (1ULL<<index);
+                knights |= (1ULL<<index);
+                early_score -= EARLY_KNIGHT_EVAL;
+                late_score  -= LATE_KNIGHT_EVAL;
+                early_score -= EARLY_KNIGHT_SQ[static_cast<std::size_t>(index)^56];
+                late_score  -= LATE_KNIGHT_SQ[static_cast<std::size_t>(index)^56];
+                ++index; ++line_cap; continue;
+            }
+            case 'b': {
+                hash() ^= z_keys.piece_square[ 8][static_cast<std::size_t>(index)];
+                black_pieces |= (1ULL<<index);
+                bishops |= (1ULL<<index);
+                early_score -= EARLY_BISHOP_EVAL;
+                late_score  -= LATE_BISHOP_EVAL;
+                early_score -= EARLY_BISHOP_SQ[static_cast<std::size_t>(index)^56];
+                late_score  -= LATE_BISHOP_SQ[static_cast<std::size_t>(index)^56];
+                ++index; ++line_cap; continue;
+            }
+            case 'r': {
+                hash() ^= z_keys.piece_square[ 9][static_cast<std::size_t>(index)];
+                black_pieces |= (1ULL<<index);
+                rooks |= (1ULL<<index);
+                early_score -= EARLY_ROOK_EVAL;
+                late_score  -= LATE_ROOK_EVAL;
+                early_score -= EARLY_ROOK_SQ[static_cast<std::size_t>(index)^56];
+                late_score  -= LATE_ROOK_SQ[static_cast<std::size_t>(index)^56];
+                ++index; ++line_cap; continue;
+            }
+            case 'q': {
+                hash() ^= z_keys.piece_square[10][static_cast<std::size_t>(index)];
+                black_pieces |= (1ULL<<index);
+                queens |= (1ULL<<index);
+                early_score -= EARLY_QUEEN_EVAL;
+                late_score  -= LATE_QUEEN_EVAL;
+                early_score -= EARLY_QUEEN_SQ[static_cast<std::size_t>(index)^56];
+                late_score  -= LATE_QUEEN_SQ[static_cast<std::size_t>(index)^56];
+                ++index; ++line_cap; continue;
+            }
+            case 'k': {
+                hash() ^= z_keys.piece_square[11][static_cast<std::size_t>(index)];
+                black_pieces |= (1ULL<<index);
+                kings |= (1ULL<<index);
+                early_score -= EARLY_KING_SQ[static_cast<std::size_t>(index)^56];
+                late_score  -= LATE_KING_SQ[static_cast<std::size_t>(index)^56];
+                ++index; ++line_cap; continue;
+            }
+            default: { std::cout << "Unknown symbol in FEN" << std::endl;
                          return;
                      }
         }

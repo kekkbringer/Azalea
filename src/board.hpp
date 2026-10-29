@@ -39,6 +39,8 @@ struct PositionInfo {
     PieceType captured{PieceType::Empty};
     Bitboard checkers{0ULL};
     Bitboard pinned{0ULL};
+    int early_score{0};
+    int late_score{0};
     int pliesFromLastNull{124}; // something "large" to allow null move pruning early
 };
 

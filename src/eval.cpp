@@ -35,148 +35,155 @@ int eval_template(const Board& b, EvalTrace* t) {
     }
     int late_score = 0;
 
-    // piece value and placement
-    auto wp = b.white_pieces & b.pawns;
-    auto wn = b.white_pieces & b.knights;
-    auto wb = b.white_pieces & b.bishops;
-    auto wr = b.white_pieces & b.rooks;
-    auto wq = b.white_pieces & b.queens;
-    auto wk = b.white_pieces & b.kings;
-    const auto wk_idx = static_cast<std::size_t>(lsb(wk));
-    while (wp != 0) {
-        auto sq = static_cast<std::size_t>(pop_lsb(wp));
-        early_score += EARLY_PAWN_EVAL + EARLY_PAWN_SQ[sq];
-        late_score  += LATE_PAWN_EVAL  + LATE_PAWN_SQ[sq];
-        if constexpr (Trace) {
-            t->early[PAWN_EVAL]++;
-            t->late[PAWN_EVAL]++;
-            t->early[PST_START + sq]++;
-            t->late[PST_START + sq]++;
-        }
-    }
-    while (wn != 0) {
-        auto sq = static_cast<std::size_t>(pop_lsb(wn));
-        early_score += EARLY_KNIGHT_EVAL + EARLY_KNIGHT_SQ[sq];
-        late_score  += LATE_KNIGHT_EVAL  + LATE_KNIGHT_SQ[sq];
-        if constexpr (Trace) {
-            t->early[KNIGHT_EVAL]++;
-            t->late[KNIGHT_EVAL]++;
-            t->early[PST_START + 1*64 + sq]++;
-            t->late[PST_START + 1*64 + sq]++;
-        }
-    }
-    while (wb != 0) {
-        auto sq = static_cast<std::size_t>(pop_lsb(wb));
-        early_score += EARLY_BISHOP_EVAL + EARLY_BISHOP_SQ[sq];
-        late_score  += LATE_BISHOP_EVAL  + LATE_BISHOP_SQ[sq];
-        if constexpr (Trace) {
-            t->early[BISHOP_EVAL]++;
-            t->late[BISHOP_EVAL]++;
-            t->early[PST_START + 2*64 + sq]++;
-            t->late[PST_START + 2*64 + sq]++;
-        }
-    }
-    while (wr != 0) {
-        auto sq = static_cast<std::size_t>(pop_lsb(wr));
-        early_score += EARLY_ROOK_EVAL + EARLY_ROOK_SQ[sq];
-        late_score  += LATE_ROOK_EVAL  + LATE_ROOK_SQ[sq];
-        if constexpr (Trace) {
-            t->early[ROOK_EVAL]++;
-            t->late[ROOK_EVAL]++;
-            t->early[PST_START + 3*64 + sq]++;
-            t->late[PST_START + 3*64 + sq]++;
-        }
-    }
-    while (wq != 0) {
-        auto sq = static_cast<std::size_t>(pop_lsb(wq));
-        early_score += EARLY_QUEEN_EVAL + EARLY_QUEEN_SQ[sq];
-        late_score  += LATE_QUEEN_EVAL  + LATE_QUEEN_SQ[sq];
-        if constexpr (Trace) {
-            t->early[QUEEN_EVAL]++;
-            t->late[QUEEN_EVAL]++;
-            t->early[PST_START + 4*64 + sq]++;
-            t->late[PST_START + 4*64 + sq]++;
-        }
-    }
-    early_score += EARLY_KING_SQ[wk_idx];
-    late_score += LATE_KING_SQ[wk_idx];
-    if constexpr (Trace) {
-        t->early[PST_START + 5*64 + wk_idx]++;
-        t->late[PST_START + 5*64 + wk_idx]++;
-    }
+    // material scores from board
+    early_score += b.position_history.back().early_score;
+    late_score  += b.position_history.back().late_score;
 
-    auto bp = b.black_pieces & b.pawns;
-    auto bn = b.black_pieces & b.knights;
-    auto bb = b.black_pieces & b.bishops;
-    auto br = b.black_pieces & b.rooks;
-    auto bq = b.black_pieces & b.queens;
+    //// piece value and placement
+    //auto wp = b.white_pieces & b.pawns;
+    //auto wn = b.white_pieces & b.knights;
+    //auto wb = b.white_pieces & b.bishops;
+    //auto wr = b.white_pieces & b.rooks;
+    //auto wq = b.white_pieces & b.queens;
+    //while (wp != 0) {
+    //    auto sq = static_cast<std::size_t>(pop_lsb(wp));
+    //    early_score += EARLY_PAWN_EVAL + EARLY_PAWN_SQ[sq];
+    //    late_score  += LATE_PAWN_EVAL  + LATE_PAWN_SQ[sq];
+    //    if constexpr (Trace) {
+    //        t->early[PAWN_EVAL]++;
+    //        t->late[PAWN_EVAL]++;
+    //        t->early[PST_START + sq]++;
+    //        t->late[PST_START + sq]++;
+    //    }
+    //}
+    //while (wn != 0) {
+    //    auto sq = static_cast<std::size_t>(pop_lsb(wn));
+    //    early_score += EARLY_KNIGHT_EVAL + EARLY_KNIGHT_SQ[sq];
+    //    late_score  += LATE_KNIGHT_EVAL  + LATE_KNIGHT_SQ[sq];
+    //    if constexpr (Trace) {
+    //        t->early[KNIGHT_EVAL]++;
+    //        t->late[KNIGHT_EVAL]++;
+    //        t->early[PST_START + 1*64 + sq]++;
+    //        t->late[PST_START + 1*64 + sq]++;
+    //    }
+    //}
+    //while (wb != 0) {
+    //    auto sq = static_cast<std::size_t>(pop_lsb(wb));
+    //    early_score += EARLY_BISHOP_EVAL + EARLY_BISHOP_SQ[sq];
+    //    late_score  += LATE_BISHOP_EVAL  + LATE_BISHOP_SQ[sq];
+    //    if constexpr (Trace) {
+    //        t->early[BISHOP_EVAL]++;
+    //        t->late[BISHOP_EVAL]++;
+    //        t->early[PST_START + 2*64 + sq]++;
+    //        t->late[PST_START + 2*64 + sq]++;
+    //    }
+    //}
+    //while (wr != 0) {
+    //    auto sq = static_cast<std::size_t>(pop_lsb(wr));
+    //    early_score += EARLY_ROOK_EVAL + EARLY_ROOK_SQ[sq];
+    //    late_score  += LATE_ROOK_EVAL  + LATE_ROOK_SQ[sq];
+    //    if constexpr (Trace) {
+    //        t->early[ROOK_EVAL]++;
+    //        t->late[ROOK_EVAL]++;
+    //        t->early[PST_START + 3*64 + sq]++;
+    //        t->late[PST_START + 3*64 + sq]++;
+    //    }
+    //}
+    //while (wq != 0) {
+    //    auto sq = static_cast<std::size_t>(pop_lsb(wq));
+    //    early_score += EARLY_QUEEN_EVAL + EARLY_QUEEN_SQ[sq];
+    //    late_score  += LATE_QUEEN_EVAL  + LATE_QUEEN_SQ[sq];
+    //    if constexpr (Trace) {
+    //        t->early[QUEEN_EVAL]++;
+    //        t->late[QUEEN_EVAL]++;
+    //        t->early[PST_START + 4*64 + sq]++;
+    //        t->late[PST_START + 4*64 + sq]++;
+    //    }
+    //}
+    //early_score += EARLY_KING_SQ[wk_idx];
+    //late_score += LATE_KING_SQ[wk_idx];
+    //if constexpr (Trace) {
+    //    t->early[PST_START + 5*64 + wk_idx]++;
+    //    t->late[PST_START + 5*64 + wk_idx]++;
+    //}
+
+    //auto bp = b.black_pieces & b.pawns;
+    //auto bn = b.black_pieces & b.knights;
+    //auto bb = b.black_pieces & b.bishops;
+    //auto br = b.black_pieces & b.rooks;
+    //auto bq = b.black_pieces & b.queens;
+    //auto bk = b.black_pieces & b.kings;
+    //while (bp != 0) {
+    //    auto sq = static_cast<std::size_t>(pop_lsb(bp));
+    //    early_score -= EARLY_PAWN_EVAL + EARLY_PAWN_SQ[sq^56];
+    //    late_score  -= LATE_PAWN_EVAL  + LATE_PAWN_SQ[sq^56];
+    //    if constexpr (Trace) {
+    //        t->early[PAWN_EVAL]--;
+    //        t->late[PAWN_EVAL]--;
+    //        t->early[PST_START + (sq^56)]--;
+    //        t->late[PST_START + (sq^56)]--;
+    //    }
+    //}
+    //while (bn != 0) {
+    //    auto sq = static_cast<std::size_t>(pop_lsb(bn));
+    //    early_score -= EARLY_KNIGHT_EVAL + EARLY_KNIGHT_SQ[sq^56];
+    //    late_score  -= LATE_KNIGHT_EVAL  + LATE_KNIGHT_SQ[sq^56];
+    //    if constexpr (Trace) {
+    //        t->early[KNIGHT_EVAL]--;
+    //        t->late[KNIGHT_EVAL]--;
+    //        t->early[PST_START + 1*64 + (sq^56)]--;
+    //        t->late[PST_START + 1*64 + (sq^56)]--;
+    //    }
+    //}
+    //while (bb != 0) {
+    //    auto sq = static_cast<std::size_t>(pop_lsb(bb));
+    //    early_score -= EARLY_BISHOP_EVAL + EARLY_BISHOP_SQ[sq^56];
+    //    late_score  -= LATE_BISHOP_EVAL  + LATE_BISHOP_SQ[sq^56];
+    //    if constexpr (Trace) {
+    //        t->early[BISHOP_EVAL]--;
+    //        t->late[BISHOP_EVAL]--;
+    //        t->early[PST_START + 2*64 + (sq^56)]--;
+    //        t->late[PST_START + 2*64 + (sq^56)]--;
+    //    }
+    //}
+    //while (br != 0) {
+    //    auto sq = static_cast<std::size_t>(pop_lsb(br));
+    //    early_score -= EARLY_ROOK_EVAL + EARLY_ROOK_SQ[sq^56];
+    //    late_score  -= LATE_ROOK_EVAL  + LATE_ROOK_SQ[sq^56];
+    //    if constexpr (Trace) {
+    //        t->early[ROOK_EVAL]--;
+    //        t->late[ROOK_EVAL]--;
+    //        t->early[PST_START + 3*64 + (sq^56)]--;
+    //        t->late[PST_START + 3*64 + (sq^56)]--;
+    //    }
+    //}
+    //while (bq != 0) {
+    //    auto sq = static_cast<std::size_t>(pop_lsb(bq));
+    //    early_score -= EARLY_QUEEN_EVAL  + EARLY_QUEEN_SQ[sq^56];
+    //    late_score -= LATE_QUEEN_EVAL  + LATE_QUEEN_SQ[sq^56];
+    //    if constexpr (Trace) {
+    //        t->early[QUEEN_EVAL]--;
+    //        t->late[QUEEN_EVAL]--;
+    //        t->early[PST_START + 4*64 + (sq^56)]--;
+    //        t->late[PST_START + 4*64 + (sq^56)]--;
+    //    }
+    //}
+    //early_score -= EARLY_KING_SQ[bk_idx^56];
+    //late_score -= LATE_KING_SQ[bk_idx^56];
+    //if constexpr (Trace) {
+    //    t->early[PST_START + 5*64 + (bk_idx^56)]--;
+    //    t->late[PST_START + 5*64 + (bk_idx^56)]--;
+    //}
+
+
+    auto wk = b.white_pieces & b.kings;
     auto bk = b.black_pieces & b.kings;
+    const auto wk_idx = static_cast<std::size_t>(lsb(wk));
     const auto bk_idx = static_cast<std::size_t>(lsb(bk));
-    while (bp != 0) {
-        auto sq = static_cast<std::size_t>(pop_lsb(bp));
-        early_score -= EARLY_PAWN_EVAL + EARLY_PAWN_SQ[sq^56];
-        late_score  -= LATE_PAWN_EVAL  + LATE_PAWN_SQ[sq^56];
-        if constexpr (Trace) {
-            t->early[PAWN_EVAL]--;
-            t->late[PAWN_EVAL]--;
-            t->early[PST_START + (sq^56)]--;
-            t->late[PST_START + (sq^56)]--;
-        }
-    }
-    while (bn != 0) {
-        auto sq = static_cast<std::size_t>(pop_lsb(bn));
-        early_score -= EARLY_KNIGHT_EVAL + EARLY_KNIGHT_SQ[sq^56];
-        late_score  -= LATE_KNIGHT_EVAL  + LATE_KNIGHT_SQ[sq^56];
-        if constexpr (Trace) {
-            t->early[KNIGHT_EVAL]--;
-            t->late[KNIGHT_EVAL]--;
-            t->early[PST_START + 1*64 + (sq^56)]--;
-            t->late[PST_START + 1*64 + (sq^56)]--;
-        }
-    }
-    while (bb != 0) {
-        auto sq = static_cast<std::size_t>(pop_lsb(bb));
-        early_score -= EARLY_BISHOP_EVAL + EARLY_BISHOP_SQ[sq^56];
-        late_score  -= LATE_BISHOP_EVAL  + LATE_BISHOP_SQ[sq^56];
-        if constexpr (Trace) {
-            t->early[BISHOP_EVAL]--;
-            t->late[BISHOP_EVAL]--;
-            t->early[PST_START + 2*64 + (sq^56)]--;
-            t->late[PST_START + 2*64 + (sq^56)]--;
-        }
-    }
-    while (br != 0) {
-        auto sq = static_cast<std::size_t>(pop_lsb(br));
-        early_score -= EARLY_ROOK_EVAL + EARLY_ROOK_SQ[sq^56];
-        late_score  -= LATE_ROOK_EVAL  + LATE_ROOK_SQ[sq^56];
-        if constexpr (Trace) {
-            t->early[ROOK_EVAL]--;
-            t->late[ROOK_EVAL]--;
-            t->early[PST_START + 3*64 + (sq^56)]--;
-            t->late[PST_START + 3*64 + (sq^56)]--;
-        }
-    }
-    while (bq != 0) {
-        auto sq = static_cast<std::size_t>(pop_lsb(bq));
-        early_score -= EARLY_QUEEN_EVAL  + EARLY_QUEEN_SQ[sq^56];
-        late_score -= LATE_QUEEN_EVAL  + LATE_QUEEN_SQ[sq^56];
-        if constexpr (Trace) {
-            t->early[QUEEN_EVAL]--;
-            t->late[QUEEN_EVAL]--;
-            t->early[PST_START + 4*64 + (sq^56)]--;
-            t->late[PST_START + 4*64 + (sq^56)]--;
-        }
-    }
-    early_score -= EARLY_KING_SQ[bk_idx^56];
-    late_score -= LATE_KING_SQ[bk_idx^56];
-    if constexpr (Trace) {
-        t->early[PST_START + 5*64 + (bk_idx^56)]--;
-        t->late[PST_START + 5*64 + (bk_idx^56)]--;
-    }
 
     // passed, doubled and isolated pawns
-    wp = b.white_pieces & b.pawns;
-    bp = b.black_pieces & b.pawns;
+    auto wp = b.white_pieces & b.pawns;
+    auto bp = b.black_pieces & b.pawns;
     while (wp != 0) {
         const auto sq = static_cast<std::size_t>(pop_lsb(wp));
         // pased pawns
@@ -267,7 +274,7 @@ int eval_template(const Board& b, EvalTrace* t) {
     }
 
     // rooks on open and half open files
-    wr = b.white_pieces & b.rooks;
+    auto wr = b.white_pieces & b.rooks;
     while (wr != 0) {
         auto sq = static_cast<std::size_t>(pop_lsb(wr));
         if ((FILES[sq%8] & b.white_pieces & b.pawns) == 0){
@@ -290,7 +297,7 @@ int eval_template(const Board& b, EvalTrace* t) {
         }
     }
 
-    br = b.black_pieces & b.rooks;
+    auto br = b.black_pieces & b.rooks;
     while (br != 0) {
         auto sq = static_cast<std::size_t>(pop_lsb(br));
         if ((FILES[sq%8] & b.black_pieces & b.pawns) == 0){
