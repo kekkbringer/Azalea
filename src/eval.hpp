@@ -19,6 +19,18 @@ constexpr int MATE_BOUND = SCORE_MATE - MAX_PLY;
 constexpr bool is_mate_score(int s) { return std::abs(s) >= MATE_BOUND; }
 
 
+constexpr int PAWN_MATERIAL   =  0;
+constexpr int KNIGHT_MATERIAL =  1;
+constexpr int BISHOP_MATERIAL =  1;
+constexpr int ROOK_MATERIAL   =  2;
+constexpr int QUEEN_MATERIAL  =  3;
+
+inline constexpr int max_material = 16 * PAWN_MATERIAL
+                                  +  4 * KNIGHT_MATERIAL
+                                  +  4 * BISHOP_MATERIAL
+                                  +  4 * ROOK_MATERIAL
+                                  +  2 * QUEEN_MATERIAL;
+
 // helper functions
 constexpr Bitboard gen_passed_pawn_mask(const int sq) {
     Bitboard mask = 0ULL;
@@ -63,13 +75,6 @@ constexpr std::array<std::array<int, 64>, 64> gen_distance_table() {
 
 constexpr auto PASSED_PAWN_MASK_TABLE = gen_passed_pawn_table();
 constexpr auto DISTANCE_TABLE = gen_distance_table();
-
-
-constexpr int PAWN_MATERIAL   =  0;
-constexpr int KNIGHT_MATERIAL =  1;
-constexpr int BISHOP_MATERIAL =  1;
-constexpr int ROOK_MATERIAL   =  2;
-constexpr int QUEEN_MATERIAL  =  3;
 
 
 int eval(const Board&);

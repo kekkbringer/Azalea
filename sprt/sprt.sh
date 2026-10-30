@@ -3,10 +3,10 @@
 set -euo pipefail
 
 # ------------------------------- settings ------------------------------------
-NEW_ENGINE="./azalea_0.1.13_impr"          # engine under test
-NEW_NAME="azalea_0.1.13_impr"
-BASE_ENGINE="./azalea_0.1.12"        # reference engine
-BASE_NAME="azalea_0.1.12"
+NEW_ENGINE="./azalea_opt"          # engine under test
+NEW_NAME="azalea_opt"
+BASE_ENGINE="./azalea_unopt"        # reference engine
+BASE_NAME="azalea_unopt"
 
 BOOK="./UHO_Lichess_4852_v1.epd"
 BOOK_FORMAT="epd"

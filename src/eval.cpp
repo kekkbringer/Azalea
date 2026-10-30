@@ -183,11 +183,6 @@ int eval_template(const Board& b, EvalTrace* t) {
                        + BISHOP_MATERIAL * std::popcount(b.bishops)
                        + ROOK_MATERIAL   * std::popcount(b.rooks)
                        + QUEEN_MATERIAL  * std::popcount(b.queens);
-    constexpr int max_material = 16 * PAWN_MATERIAL
-                               +  4 * KNIGHT_MATERIAL
-                               +  4 * BISHOP_MATERIAL
-                               +  4 * ROOK_MATERIAL
-                               +  2 * QUEEN_MATERIAL;
     material_score = std::min(material_score, max_material);
     if constexpr (Trace) t->phase = material_score;
 

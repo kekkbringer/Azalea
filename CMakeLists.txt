@@ -9,10 +9,15 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 option(AZALEA_BUILD_TESTS "Build the Azalea test suite" ON)
 option(AZALEA_ENABLE_SANITIZERS "Build with AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
+option(AZALEA_BUILD_TUNER "Build the Texel tuner" OFF)
 
 add_subdirectory(src)
 
 if(AZALEA_BUILD_TESTS)
     enable_testing()
     add_subdirectory(tests)
+endif()
+
+if(AZALEA_BUILD_TUNER)
+    add_subdirectory(tools)
 endif()
