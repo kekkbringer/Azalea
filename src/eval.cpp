@@ -55,6 +55,30 @@ struct EvalInfo {
     }
 };
 
+/**
+ * Records material and piece-square terms in the trace only.
+ */
+template<bool White>
+void trace_psqt(const Board& b, EvalTrace* t) {
+    constexpr int sign = White ? 1 : -1;
+    const Bitboard own = White ? b.white_pieces : b.black_pieces;
+    const Bitboard by_type[6] = {b.pawns, b.knights, b.bishops, b.rooks, b.queens, b.kings};
+
+    for (int pt = 0; pt < 6; ++pt) {
+        for (Bitboard bb = own & by_type[pt]; bb != 0;) {
+            const int sq = pop_lsb(bb);
+            const int rel_sq = White ? sq : (sq ^ 56);
+
+            if (pt < 5) { // king has no material weight
+                t->early[PAWN_EVAL + pt] += sign;
+                t->late[PAWN_EVAL + pt]  += sign;
+            }
+            t->early[PST_START + pt * 64 + rel_sq] += sign;
+            t->late[PST_START + pt * 64 + rel_sq]  += sign;
+        }
+    }
+}
+
 template<bool White, bool Trace>
 Score eval_pawns(const Board& b, EvalTrace* t) {
     const Bitboard own   = White ? b.white_pieces : b.black_pieces;
@@ -184,6 +208,10 @@ int eval_template(const Board& b, EvalTrace* t) {
 
     // get material and piece table eval from board
     s += b.position_history.back().score;
+    if constexpr (Trace) {
+        trace_psqt<true>(b, t);
+        trace_psqt<false>(b, t);
+    }
 
     // eval mobility and other piece properties
     // (rook on open files, bishop pair, ...)
