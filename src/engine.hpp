@@ -31,6 +31,7 @@ struct SearchInfo {
     int depth;
     int seldepth;
     int score_cp;
+    enum class Bound { Exact, Lower, Upper } bound = Bound::Exact;
     std::uint64_t nodes;
     std::uint64_t nps;
     int hashfull;

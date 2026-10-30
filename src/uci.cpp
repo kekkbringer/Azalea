@@ -146,11 +146,14 @@ std::string Uci::format_score(const int s) {
 }
 
 void Uci::on_info(const SearchInfo& si) {
+    std::string bound = "";
+    if (si.bound == SearchInfo::Bound::Lower) bound = " lowerbound";
+    if (si.bound == SearchInfo::Bound::Upper) bound = " upperbound";
     std::string pv_line = " pv ";
     for (const auto& m: si.pv) pv_line += to_uci(m) + " ";
     send("info depth "    + std::to_string(si.depth)
            + " seldepth " + std::to_string(si.seldepth)
-           + " score "    + format_score(si.score_cp)
+           + " score "    + format_score(si.score_cp) + bound
            + " nodes "    + std::to_string(si.nodes)
            + " nps "      + std::to_string(si.nps)
            + " hashfull " + std::to_string(si.hashfull)

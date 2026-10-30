@@ -13,7 +13,11 @@ enum TraceIndex : int {
     BISHOP_PAIR = PST_START + 6 * 64,
     ROOK_HALF_OPEN,
     ROOK_OPEN,
-    N_TRACE
+    KNIGHT_MOBILITY = ROOK_OPEN + 1,           //  9 entries
+    BISHOP_MOBILITY = KNIGHT_MOBILITY +  9,    // 14 entries
+    ROOK_MOBILITY   = BISHOP_MOBILITY + 14,    // 15 entries
+    QUEEN_MOBILITY  = ROOK_MOBILITY   + 15,    // 28 entries
+    N_TRACE = QUEEN_MOBILITY + 28
 };
 
 struct EvalTrace {

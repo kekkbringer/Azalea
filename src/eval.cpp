@@ -1,5 +1,7 @@
 #include "eval.hpp"
+#include "attacks.hpp"
 #include "util.hpp"
+#include "weights.hpp"
 
 #include "eval_trace.hpp" // for tuning
 
@@ -7,6 +9,144 @@
 #include <algorithm>
 
 namespace azalea {
+
+/**
+ * Adds a term to the score and records it in the trace.
+ */
+template<bool White, bool Trace>
+inline void add(Score& s, EvalTrace* t, int idx, int count=1) {
+    s += WEIGHTS[static_cast<std::size_t>(idx)] * count;
+    if constexpr (Trace) {
+        constexpr int sign = White ? 1 : -1;
+        t->early[idx] += sign * count;
+        t->late[idx]  += sign * count;
+    }
+}
+
+/**
+ * Adds a term to the LATE GAME SCORE ONLY and records it in the trace.
+ */
+template<bool White, bool Trace>
+inline void add_late(Score& s, EvalTrace* t, int idx, int count=1) {
+    s.late += WEIGHTS[static_cast<std::size_t>(idx)].late * count;
+    if constexpr (Trace) {
+        constexpr int sign = White ? 1 : -1;
+        t->late[idx]  += sign * count;
+    }
+}
+
+template<bool White>
+constexpr Bitboard passed_mask(int sq) {
+    return White ? PASSED_PAWN_MASK_TABLE[static_cast<std::size_t>(sq)]
+                 : __builtin_bswap64(PASSED_PAWN_MASK_TABLE[static_cast<std::size_t>(sq)^56]);
+}
+
+struct EvalInfo {
+    enum { PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING };
+
+    Bitboard attacked_by[2][6]{};
+    Bitboard attacked[2]{};
+    Bitboard attacked_twice[2]{};
+
+    void record(int c, int pt, Bitboard atk) {
+        attacked_twice[c]  |= attacked[c] & atk;
+        attacked[c]        |= atk;
+        attacked_by[c][pt] |= atk;
+    }
+};
+
+template<bool White, bool Trace>
+Score eval_pawns(const Board& b, EvalTrace* t) {
+    const Bitboard own   = White ? b.white_pieces : b.black_pieces;
+    const Bitboard enemy = White ? b.black_pieces : b.white_pieces;
+    const Bitboard own_pawns   = own   & b.pawns;
+    const Bitboard enemy_pawns = enemy & b.pawns;
+    const int own_king_idx = lsb(own & b.kings);
+    const int enemy_king_idx = lsb(enemy & b.kings);
+
+    Score s;
+    for (Bitboard bb = own_pawns; bb != 0;) {
+        const int sq = pop_lsb(bb);
+        const int rel_rank = White ? sq/8 : (sq^56)/8; // 0 is own backrank
+
+        // passed pawn, plus king distance to passer
+        if ((passed_mask<White>(sq) & enemy_pawns) == 0) {
+            add<White, Trace>(s, t, PASSED_PAWN_START + rel_rank);
+            add_late<White, Trace>(s, t, PASSED_PAWN_KING_DISTANCE + DISTANCE_TABLE[static_cast<std::size_t>(sq)][static_cast<std::size_t>(own_king_idx)]);
+            add_late<White, Trace>(s, t, PASSED_PAWN_KING_DISTANCE + DISTANCE_TABLE[static_cast<std::size_t>(sq)][static_cast<std::size_t>(enemy_king_idx)], -1);
+        }
+
+        // doubled or tripled pawns
+        if (more_than_one(FILES[sq%8] & own_pawns))
+            add<White, Trace>(s, t, DOUBLED_PAWN);
+
+        // isolated pawn
+        if ((ADJACENT_FILES[sq%8] & own_pawns) == 0)
+            add<White, Trace>(s, t, ISOLATED_PAWN);
+    }
+    return s;
+}
+
+template<bool White, bool Trace>
+Score eval_pieces(const Board& b, EvalInfo& ei, EvalTrace* t) {
+    constexpr int us = White ? 0 : 1;
+    constexpr int them = 1 - us;
+
+    const Bitboard own         = White ? b.white_pieces : b.black_pieces;
+    const Bitboard enemy       = White ? b.black_pieces : b.white_pieces;
+    const Bitboard occ         = b.white_pieces | b.black_pieces;
+    const Bitboard own_pawns   = own & b.pawns;
+    const Bitboard enemy_pawns = enemy & b.pawns;
+
+    // square that count for mobility
+    // not blocked by own pawns or king (they move rarely)
+    // not attacked by enemy pawns
+    const Bitboard mobility_area
+        = ~(own_pawns | (own & b.kings) | ei.attacked_by[them][EvalInfo::PAWN]);
+
+    Score s;
+
+    // knight
+    for (Bitboard bb = own & b.knights; bb != 0;) {
+        const int sq = pop_lsb(bb);
+        const Bitboard atk = attacks::knight(sq);
+        ei.record(us, EvalInfo::KNIGHT, atk);
+        add<White, Trace>(s, t, KNIGHT_MOBILITY + std::popcount(atk & mobility_area));
+    }
+
+    // bishop
+    for (Bitboard bb = own & b.bishops; bb != 0;) {
+        const int sq = pop_lsb(bb);
+        const Bitboard atk = attacks::bishop(sq, occ);
+        ei.record(us, EvalInfo::BISHOP, atk);
+        add<White, Trace>(s, t, BISHOP_MOBILITY + std::popcount(atk & mobility_area));
+    }
+    // bishop pair
+    if (more_than_one(own & b.bishops)) add<White, Trace>(s, t, BISHOP_PAIR);
+
+    // rook
+    for (Bitboard bb = own & b.rooks; bb != 0;) {
+        const int sq = pop_lsb(bb);
+        const Bitboard atk = attacks::rook(sq, occ);
+        ei.record(us, EvalInfo::ROOK, atk);
+        add<White, Trace>(s, t, ROOK_MOBILITY + std::popcount(atk & mobility_area));
+
+        const Bitboard file = FILES[sq % 8];
+        if (not (file & own_pawns)) {
+            add<White, Trace>(s, t, (file&enemy_pawns) ? ROOK_HALF_OPEN : ROOK_OPEN);
+        }
+    }
+
+    // queen
+    for (Bitboard bb = own & b.queens; bb != 0;) {
+        const int sq = pop_lsb(bb);
+        const Bitboard atk = attacks::queen(sq, occ);
+        ei.record(us, EvalInfo::QUEEN, atk);
+        add<White, Trace>(s, t, QUEEN_MOBILITY + std::popcount(atk & mobility_area));
+    }
+
+    return s;
+}
 
 /**
  * Evaluates the board in centipawns from the perspective of the side to move.
@@ -27,305 +167,38 @@ int eval_template(const Board& b, EvalTrace* t) {
     material_score = std::min(material_score, max_material);
     if constexpr (Trace) t->phase = material_score;
 
-    // give a bonus for the side to move in the early game
-    int early_score = b.white_to_move ? TEMPO_EVAL : -TEMPO_EVAL;
-    if constexpr (Trace) {
-        if (b.white_to_move) t->early[TEMPO]++;
-        else t->early[TEMPO]--;
-    }
-    int late_score = 0;
 
-    // material scores from board
-    early_score += b.position_history.back().early_score;
-    late_score  += b.position_history.back().late_score;
+    EvalInfo ei;
 
-    //// piece value and placement
-    //auto wp = b.white_pieces & b.pawns;
-    //auto wn = b.white_pieces & b.knights;
-    //auto wb = b.white_pieces & b.bishops;
-    //auto wr = b.white_pieces & b.rooks;
-    //auto wq = b.white_pieces & b.queens;
-    //while (wp != 0) {
-    //    auto sq = static_cast<std::size_t>(pop_lsb(wp));
-    //    early_score += EARLY_PAWN_EVAL + EARLY_PAWN_SQ[sq];
-    //    late_score  += LATE_PAWN_EVAL  + LATE_PAWN_SQ[sq];
-    //    if constexpr (Trace) {
-    //        t->early[PAWN_EVAL]++;
-    //        t->late[PAWN_EVAL]++;
-    //        t->early[PST_START + sq]++;
-    //        t->late[PST_START + sq]++;
-    //    }
-    //}
-    //while (wn != 0) {
-    //    auto sq = static_cast<std::size_t>(pop_lsb(wn));
-    //    early_score += EARLY_KNIGHT_EVAL + EARLY_KNIGHT_SQ[sq];
-    //    late_score  += LATE_KNIGHT_EVAL  + LATE_KNIGHT_SQ[sq];
-    //    if constexpr (Trace) {
-    //        t->early[KNIGHT_EVAL]++;
-    //        t->late[KNIGHT_EVAL]++;
-    //        t->early[PST_START + 1*64 + sq]++;
-    //        t->late[PST_START + 1*64 + sq]++;
-    //    }
-    //}
-    //while (wb != 0) {
-    //    auto sq = static_cast<std::size_t>(pop_lsb(wb));
-    //    early_score += EARLY_BISHOP_EVAL + EARLY_BISHOP_SQ[sq];
-    //    late_score  += LATE_BISHOP_EVAL  + LATE_BISHOP_SQ[sq];
-    //    if constexpr (Trace) {
-    //        t->early[BISHOP_EVAL]++;
-    //        t->late[BISHOP_EVAL]++;
-    //        t->early[PST_START + 2*64 + sq]++;
-    //        t->late[PST_START + 2*64 + sq]++;
-    //    }
-    //}
-    //while (wr != 0) {
-    //    auto sq = static_cast<std::size_t>(pop_lsb(wr));
-    //    early_score += EARLY_ROOK_EVAL + EARLY_ROOK_SQ[sq];
-    //    late_score  += LATE_ROOK_EVAL  + LATE_ROOK_SQ[sq];
-    //    if constexpr (Trace) {
-    //        t->early[ROOK_EVAL]++;
-    //        t->late[ROOK_EVAL]++;
-    //        t->early[PST_START + 3*64 + sq]++;
-    //        t->late[PST_START + 3*64 + sq]++;
-    //    }
-    //}
-    //while (wq != 0) {
-    //    auto sq = static_cast<std::size_t>(pop_lsb(wq));
-    //    early_score += EARLY_QUEEN_EVAL + EARLY_QUEEN_SQ[sq];
-    //    late_score  += LATE_QUEEN_EVAL  + LATE_QUEEN_SQ[sq];
-    //    if constexpr (Trace) {
-    //        t->early[QUEEN_EVAL]++;
-    //        t->late[QUEEN_EVAL]++;
-    //        t->early[PST_START + 4*64 + sq]++;
-    //        t->late[PST_START + 4*64 + sq]++;
-    //    }
-    //}
-    //early_score += EARLY_KING_SQ[wk_idx];
-    //late_score += LATE_KING_SQ[wk_idx];
-    //if constexpr (Trace) {
-    //    t->early[PST_START + 5*64 + wk_idx]++;
-    //    t->late[PST_START + 5*64 + wk_idx]++;
-    //}
+    // First, the pawn and king attacks need to be calculated
+    // they are needed for the piece mobility evaluation
+    ei.record(0, EvalInfo::PAWN, attacks::pawn_white(b.white_pieces & b.pawns));
+    ei.record(1, EvalInfo::PAWN, attacks::pawn_black(b.black_pieces & b.pawns));
+    ei.record(0, EvalInfo::KING, attacks::king(lsb(b.white_pieces & b.kings)));
+    ei.record(1, EvalInfo::KING, attacks::king(lsb(b.black_pieces & b.kings)));
 
-    //auto bp = b.black_pieces & b.pawns;
-    //auto bn = b.black_pieces & b.knights;
-    //auto bb = b.black_pieces & b.bishops;
-    //auto br = b.black_pieces & b.rooks;
-    //auto bq = b.black_pieces & b.queens;
-    //auto bk = b.black_pieces & b.kings;
-    //while (bp != 0) {
-    //    auto sq = static_cast<std::size_t>(pop_lsb(bp));
-    //    early_score -= EARLY_PAWN_EVAL + EARLY_PAWN_SQ[sq^56];
-    //    late_score  -= LATE_PAWN_EVAL  + LATE_PAWN_SQ[sq^56];
-    //    if constexpr (Trace) {
-    //        t->early[PAWN_EVAL]--;
-    //        t->late[PAWN_EVAL]--;
-    //        t->early[PST_START + (sq^56)]--;
-    //        t->late[PST_START + (sq^56)]--;
-    //    }
-    //}
-    //while (bn != 0) {
-    //    auto sq = static_cast<std::size_t>(pop_lsb(bn));
-    //    early_score -= EARLY_KNIGHT_EVAL + EARLY_KNIGHT_SQ[sq^56];
-    //    late_score  -= LATE_KNIGHT_EVAL  + LATE_KNIGHT_SQ[sq^56];
-    //    if constexpr (Trace) {
-    //        t->early[KNIGHT_EVAL]--;
-    //        t->late[KNIGHT_EVAL]--;
-    //        t->early[PST_START + 1*64 + (sq^56)]--;
-    //        t->late[PST_START + 1*64 + (sq^56)]--;
-    //    }
-    //}
-    //while (bb != 0) {
-    //    auto sq = static_cast<std::size_t>(pop_lsb(bb));
-    //    early_score -= EARLY_BISHOP_EVAL + EARLY_BISHOP_SQ[sq^56];
-    //    late_score  -= LATE_BISHOP_EVAL  + LATE_BISHOP_SQ[sq^56];
-    //    if constexpr (Trace) {
-    //        t->early[BISHOP_EVAL]--;
-    //        t->late[BISHOP_EVAL]--;
-    //        t->early[PST_START + 2*64 + (sq^56)]--;
-    //        t->late[PST_START + 2*64 + (sq^56)]--;
-    //    }
-    //}
-    //while (br != 0) {
-    //    auto sq = static_cast<std::size_t>(pop_lsb(br));
-    //    early_score -= EARLY_ROOK_EVAL + EARLY_ROOK_SQ[sq^56];
-    //    late_score  -= LATE_ROOK_EVAL  + LATE_ROOK_SQ[sq^56];
-    //    if constexpr (Trace) {
-    //        t->early[ROOK_EVAL]--;
-    //        t->late[ROOK_EVAL]--;
-    //        t->early[PST_START + 3*64 + (sq^56)]--;
-    //        t->late[PST_START + 3*64 + (sq^56)]--;
-    //    }
-    //}
-    //while (bq != 0) {
-    //    auto sq = static_cast<std::size_t>(pop_lsb(bq));
-    //    early_score -= EARLY_QUEEN_EVAL  + EARLY_QUEEN_SQ[sq^56];
-    //    late_score -= LATE_QUEEN_EVAL  + LATE_QUEEN_SQ[sq^56];
-    //    if constexpr (Trace) {
-    //        t->early[QUEEN_EVAL]--;
-    //        t->late[QUEEN_EVAL]--;
-    //        t->early[PST_START + 4*64 + (sq^56)]--;
-    //        t->late[PST_START + 4*64 + (sq^56)]--;
-    //    }
-    //}
-    //early_score -= EARLY_KING_SQ[bk_idx^56];
-    //late_score -= LATE_KING_SQ[bk_idx^56];
-    //if constexpr (Trace) {
-    //    t->early[PST_START + 5*64 + (bk_idx^56)]--;
-    //    t->late[PST_START + 5*64 + (bk_idx^56)]--;
-    //}
+    Score s;
 
+    // give a bonus for the side to move
+    add<true, Trace>(s, t, TEMPO, b.white_to_move ? 1 : -1);
 
-    auto wk = b.white_pieces & b.kings;
-    auto bk = b.black_pieces & b.kings;
-    const auto wk_idx = static_cast<std::size_t>(lsb(wk));
-    const auto bk_idx = static_cast<std::size_t>(lsb(bk));
+    // get material and piece table eval from board
+    s += b.position_history.back().score;
 
-    // passed, doubled and isolated pawns
-    auto wp = b.white_pieces & b.pawns;
-    auto bp = b.black_pieces & b.pawns;
-    while (wp != 0) {
-        const auto sq = static_cast<std::size_t>(pop_lsb(wp));
-        // pased pawns
-        if ((PASSED_PAWN_MASK_TABLE[sq] & bp) == 0) {
-            early_score += EARLY_PASSED_PAWN[sq/8];
-            late_score  +=  LATE_PASSED_PAWN[sq/8];
-            late_score += PASSED_PAWN_KING_DISTANCE_EVAL[static_cast<std::size_t>(DISTANCE_TABLE[sq][wk_idx])]
-                        - PASSED_PAWN_KING_DISTANCE_EVAL[static_cast<std::size_t>(DISTANCE_TABLE[sq][bk_idx])];
-            if constexpr (Trace) {
-                t->early[PASSED_PAWN_START + sq/8]++;
-                t->late[PASSED_PAWN_START + sq/8]++;
-                t->late[PASSED_PAWN_KING_DISTANCE + static_cast<std::size_t>(DISTANCE_TABLE[sq][wk_idx])]++;
-                t->late[PASSED_PAWN_KING_DISTANCE + static_cast<std::size_t>(DISTANCE_TABLE[sq][bk_idx])]--;
-            }
-        }
-        // doubled (or tripled etc)
-        if (more_than_one(FILES[sq%8] & b.white_pieces & b.pawns)) {
-            early_score += EARLY_DOUBLED_PAWN;
-            late_score  += LATE_DOUBLED_PAWN;
-            if constexpr (Trace) {
-                t->early[DOUBLED_PAWN]++;
-                t->late[DOUBLED_PAWN]++;
-            }
-        }
-        // isolated
-        if ((ADJACENT_FILES[sq%8] & b.white_pieces & b.pawns) == 0) {
-            early_score += EARLY_ISOLATED_PAWN;
-            late_score  += LATE_ISOLATED_PAWN;
-            if constexpr (Trace) {
-                t->early[ISOLATED_PAWN]++;
-                t->late[ISOLATED_PAWN]++;
-            }
-        }
-    }
-    wp = b.white_pieces & b.pawns;
-    bp = b.black_pieces & b.pawns;
-    while (bp != 0) {
-        const auto sq = static_cast<std::size_t>(pop_lsb(bp));
-        // pased pawns
-        if ((__builtin_bswap64(PASSED_PAWN_MASK_TABLE[sq^56]) & wp) == 0) {
-            early_score -= EARLY_PASSED_PAWN[(sq^56)/8];
-            late_score  -=  LATE_PASSED_PAWN[(sq^56)/8];
-            late_score += PASSED_PAWN_KING_DISTANCE_EVAL[static_cast<std::size_t>(DISTANCE_TABLE[sq][wk_idx])]
-                        - PASSED_PAWN_KING_DISTANCE_EVAL[static_cast<std::size_t>(DISTANCE_TABLE[sq][bk_idx])];
-            if constexpr (Trace) {
-                t->early[PASSED_PAWN_START + (sq^56)/8]--;
-                t->late[PASSED_PAWN_START + (sq^56)/8]--;
-                t->late[PASSED_PAWN_KING_DISTANCE + static_cast<std::size_t>(DISTANCE_TABLE[sq][wk_idx])]++;
-                t->late[PASSED_PAWN_KING_DISTANCE + static_cast<std::size_t>(DISTANCE_TABLE[sq][bk_idx])]--;
-            }
-        }
-        // doubled (or tripled etc)
-        if (more_than_one(FILES[sq%8] & b.black_pieces & b.pawns)) {
-            early_score -= EARLY_DOUBLED_PAWN;
-            late_score  -= LATE_DOUBLED_PAWN;
-            if constexpr (Trace) {
-                t->early[DOUBLED_PAWN]--;
-                t->late[DOUBLED_PAWN]--;
-            }
-        }
-        // isolated
-        if ((ADJACENT_FILES[sq%8] & b.black_pieces & b.pawns) == 0) {
-            early_score -= EARLY_ISOLATED_PAWN;
-            late_score  -= LATE_ISOLATED_PAWN;
-            if constexpr (Trace) {
-                t->early[ISOLATED_PAWN]--;
-                t->late[ISOLATED_PAWN]--;
-            }
-        }
-    }
+    // eval mobility and other piece properties
+    // (rook on open files, bishop pair, ...)
+    s += eval_pieces<true, Trace>(b, ei, t) - eval_pieces<false, Trace>(b, ei, t);
+    s += eval_pawns<true, Trace>(b, t) - eval_pawns<false, Trace>(b, t);
 
-    // bishop pair
-    if (std::popcount(b.white_pieces & b.bishops) > 1) {
-        early_score += EARLY_BISHOP_PAIR_EVAL;
-        late_score  += LATE_BISHOP_PAIR_EVAL;
-        if constexpr (Trace) {
-            t->early[BISHOP_PAIR]++;
-            t->late[BISHOP_PAIR]++;
-        }
-    }
-    if (std::popcount(b.black_pieces & b.bishops) > 1) {
-        early_score -= EARLY_BISHOP_PAIR_EVAL;
-        late_score  -= LATE_BISHOP_PAIR_EVAL;
-        if constexpr (Trace) {
-            t->early[BISHOP_PAIR]--;
-            t->late[BISHOP_PAIR]--;
-        }
-    }
-
-    // rooks on open and half open files
-    auto wr = b.white_pieces & b.rooks;
-    while (wr != 0) {
-        auto sq = static_cast<std::size_t>(pop_lsb(wr));
-        if ((FILES[sq%8] & b.white_pieces & b.pawns) == 0){
-            // at least half open
-            if ((FILES[sq%8] & b.black_pieces & b.pawns) == 0) {
-                early_score += EARLY_ROOK_OPEN;
-                late_score  += LATE_ROOK_OPEN;
-                if constexpr (Trace) {
-                    t->early[ROOK_OPEN]++;
-                    t->late[ROOK_OPEN]++;
-                }
-            } else {
-                early_score += EARLY_ROOK_HALF_OPEN;
-                late_score  += LATE_ROOK_HALF_OPEN;
-                if constexpr (Trace) {
-                    t->early[ROOK_HALF_OPEN]++;
-                    t->late[ROOK_HALF_OPEN]++;
-                }
-            }
-        }
-    }
-
-    auto br = b.black_pieces & b.rooks;
-    while (br != 0) {
-        auto sq = static_cast<std::size_t>(pop_lsb(br));
-        if ((FILES[sq%8] & b.black_pieces & b.pawns) == 0){
-            // at least half open
-            if ((FILES[sq%8] & b.white_pieces & b.pawns) == 0) {
-                early_score -= EARLY_ROOK_OPEN;
-                late_score  -= LATE_ROOK_OPEN;
-                if constexpr (Trace) {
-                    t->early[ROOK_OPEN]--;
-                    t->late[ROOK_OPEN]--;
-                }
-            } else {
-                early_score -= EARLY_ROOK_HALF_OPEN;
-                late_score  -= LATE_ROOK_HALF_OPEN;
-                if constexpr (Trace) {
-                    t->early[ROOK_HALF_OPEN]--;
-                    t->late[ROOK_HALF_OPEN]--;
-                }
-            }
-        }
-    }
+    // TODO: king safety and other stuff
 
 
     // taper score between early and late game
-    int tapered_score = (early_score * material_score + late_score * (max_material - material_score)) / max_material;
+    int tapered_score = (s.early * material_score + s.late * (max_material - material_score)) / max_material;
 
     return b.white_to_move ? tapered_score : -tapered_score;
 }
+
 
 int eval(const Board& b) { return eval_template<false>(b, nullptr); }
 void trace_eval(const Board& b, EvalTrace& t) { eval_template<true>(b, &t); }

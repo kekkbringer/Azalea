@@ -1,5 +1,7 @@
 #pragma once
 
+#include "util.hpp"
+
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -74,6 +76,18 @@ inline constexpr auto king_table = make_leaper_table(
 [[nodiscard]] Bitboard rook(int sq, Bitboard occupied) noexcept;
 [[nodiscard]] Bitboard queen(int sq, Bitboard occupied) noexcept;
 void init();
+
+// white pawn attacks by shifting
+[[nodiscard]] constexpr Bitboard pawn_white(const Bitboard wp) {
+    return ((wp & ~FILES[0]) << 7)
+         | ((wp & ~FILES[7] << 9));
+}
+
+// black pawn attacks by shifting
+[[nodiscard]] constexpr Bitboard pawn_black(const Bitboard bp) {
+    return ((bp & ~FILES[0]) >> 9)
+         | ((bp & ~FILES[7] >> 7));
+}
 
 } // namespace attacks
 

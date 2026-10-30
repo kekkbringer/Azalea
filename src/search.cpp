@@ -108,6 +108,7 @@ void search(Board& board, const SearchLimits& limits, SearchReporter& reporter, 
         // ----------------------- aspiration window loop ----------------------------
         int score;
         state.root_first = best_move;
+        state.root_updated = false;
         while (true) {
             state.seldepth = 0;
             score = alpha_beta(board, depth, 0, alpha, beta, state, ttable);
@@ -124,45 +125,86 @@ void search(Board& board, const SearchLimits& limits, SearchReporter& reporter, 
             delta += delta / 2;
         }
 
-        // incomplete iterations are still usefull
-        if (state.stopped) {
-            // if partial iteration has at least completed one root search,
-            // it has searched the previous best move already
-            if (state.pv_length[0] > 0) {
-                const auto& row = state.pv_table[0];
-                best_pv.assign(row, row + state.pv_length[0]);
-                best_move = best_pv.front();
-            }
+        const auto end = std::chrono::steady_clock::now();
+        if (state.root_updated) {
+            best_move  = state.root_pv[0];
+            best_score = state.root_score;
+            best_pv    = state.root_pv;
+            state.root_first = best_move;
+
+            SearchInfo si;
+            si.depth    = depth;
+            si.seldepth = state.seldepth;
+            si.score_cp = best_score;
+            si.bound    = (state.stopped or state.root_lowerbound
+                                ? SearchInfo::Bound::Lower : SearchInfo::Bound::Exact);
+            si.nodes    = state.nodes;
+            si.time     = std::chrono::duration_cast<ms>(end - state.start);
+            si.nps      = state.nodes * 1000 / std::max<std::uint64_t>(static_cast<std::uint64_t>(si.time.count()), 1);
+            si.hashfull = ttable.hashfull();
+            si.pv       = best_pv;
+            reporter.on_info(si);
+        } else if (not state.stopped) {
+            // completed without any root move -> no legal moves
+            SearchInfo si;
+            si.depth    = depth;
+            si.seldepth = state.seldepth;
+            si.score_cp = score;
+            si.bound    = SearchInfo::Bound::Exact;
+            si.nodes    = state.nodes;
+            si.time     = std::chrono::duration_cast<ms>(end - state.start);
+            si.nps      = state.nodes * 1000 / std::max<std::uint64_t>(static_cast<std::uint64_t>(si.time.count()), 1);
+            si.hashfull = ttable.hashfull();
+            si.pv       = best_pv;
+            reporter.on_info(si);
             break;
         }
 
-        // copy row 0 from the PV table before the next iteration overwrites it
-        const auto& row = state.pv_table[0];
-        std::vector<Move> pv(row, row + state.pv_length[0]);
-
-        if (not pv.empty()) {
-            best_move = pv.front();
-            best_score = score;
-            best_pv = std::move(pv);
+        // incomplete iterations are still usefull
+        if (state.stopped) {
+            //// if partial iteration has at least completed one root search,
+            //// it has searched the previous best move already
+            //if (state.pv_length[0] > 0) {
+            //    const auto& row = state.pv_table[0];
+            //    best_pv.assign(row, row + state.pv_length[0]);
+            //    best_move = best_pv.front();
+            //}
+            break;
         }
-
-        const auto end = std::chrono::steady_clock::now();
-
-        SearchInfo si;
-        si.depth = depth;
-        si.seldepth = state.seldepth;
-        si.score_cp = best_score;
-        si.nodes = state.nodes;
-        si.time = std::chrono::duration_cast<ms>(end - state.start);
-        si.nps = state.nodes * 1000 / std::max<std::uint64_t>(static_cast<std::uint64_t>(si.time.count()), 1);
-        si.hashfull = ttable.hashfull();
-        si.pv = best_pv;
-        reporter.on_info(si);
 
         // reached soft time limit?
         if (state.timed and state.elapsed() >= state.soft) break;
+
+        //// copy row 0 from the PV table before the next iteration overwrites it
+        //const auto& row = state.pv_table[0];
+        //std::vector<Move> pv(row, row + state.pv_length[0]);
+
+        //if (not pv.empty()) {
+        //    best_move = pv.front();
+        //    best_score = score;
+        //    best_pv = std::move(pv);
+        //}
+
+
+        //SearchInfo si;
+        //si.depth = depth;
+        //si.seldepth = state.seldepth;
+        //si.score_cp = best_score;
+        //si.nodes = state.nodes;
+        //si.time = std::chrono::duration_cast<ms>(end - state.start);
+        //si.nps = state.nodes * 1000 / std::max<std::uint64_t>(static_cast<std::uint64_t>(si.time.count()), 1);
+        //si.hashfull = ttable.hashfull();
+        //si.pv = best_pv;
+        //reporter.on_info(si);
+
     }
     
+    // maybe no move was searched even though one exist, e.g. "go nodes 1"
+    if (best_move == Move{}) {
+        Movelist ml;
+        generate_legal_moves(board, ml);
+        if (ml.size() > 0) best_move = ml.moves[0];
+    }
     reporter.on_bestmove(best_move, best_pv.size() > 1 ? best_pv[1] : Move{});
 }
 
@@ -174,7 +216,6 @@ int alpha_beta(Board& board, int depth, const int ply,
                int alpha, int beta, SearchState& state, TranspositionTable& ttable) {
     const bool is_pv_node = beta - alpha > 1;
     state.pv_length[ply] = ply; // empty PV at this node
-
 
     state.seldepth = std::max(ply, state.seldepth);
 
@@ -209,16 +250,49 @@ int alpha_beta(Board& board, int depth, const int ply,
 
 
     // --------------------------- node level pruning -------------------------------------
-    // reverse futility pruning
     const bool in_check = board.in_check();
     const int static_eval = in_check ? -SCORE_INF : eval(board);
+    const auto ply_t = static_cast<std::size_t>(ply);
+    state.static_evals[ply_t] = in_check ? SCORE_NONE : static_eval;
+
+    // improving heuristic
+    // TODO: last time this heuristic did not result in a provable strength increase
+    //       this is most likely due to a bad eval function and non-trustworthy
+    //       static evals as a consequence.
+    // By comparing the static eval of this ply to that 2 plies ago it is estimated whether
+    // the position is improving for us or not. Based on that we can deduct stuff:
+    // Improving: node is more likely to fail high -> pruning that assumes "this is going well"
+    //            is saver (e.g. RFP). Pruning that assumes "this is going badly" is riskier
+    //            (e.g. LMP, futility pruning)
+    // If not improving, the opposite can be assumed.
+    /* TODO: IMPROVING HEURISTIC
+    bool improving = false;
+    if (not in_check) {
+        if (ply >= 2 and state.static_evals[ply_t-2] != SCORE_NONE)
+            improving = static_eval > state.static_evals[ply_t-2];
+        // if the static eval from two plies ago was NONE (because we were in check)
+        // we can test ply-4
+        else if (ply >= 4 and state.static_evals[ply_t-4] != SCORE_NONE)
+            improving = static_eval > state.static_evals[ply_t-4];
+        else
+            improving = false;
+    } // */
+
+    // RFP - reverse futility pruning
+    // If the position is already so good, that the static eval plus a sagety margin
+    // is already larger than beta, the node is not searched. Instead, the conservative
+    // score of static_eval - safety_margin is returned.
+    // If the position is improving, the margin is set smaller so we prune more.
     if (not is_pv_node and not in_check and depth <= 6 and std::abs(beta) < MATE_BOUND) {
-        if (static_eval - 80*depth >= beta) {
-            return static_eval - 80*depth; // fail soft
+        // TODO: IMPROVING HEURISTIC
+        //const int safety_margin = (improving ? 60 : 80) * depth;
+        const int safety_margin = 80 * depth;
+        if (static_eval - safety_margin >= beta) {
+            return static_eval - safety_margin; // fail soft
         }
     }
 
-    // null move pruning
+    // NMP - null move pruning
     if (not is_pv_node and not in_check and depth >= 3 and static_eval >= beta
             and board.player_has_non_pawn_material() and board.position_history.back().pliesFromLastNull > 0) { 
         const int reduction = 3 + depth / 4;
@@ -237,6 +311,8 @@ int alpha_beta(Board& board, int depth, const int ply,
     // important, the next iterative deepening loop will search it and a TT move will be present
     if (tt_move == Move{} and depth >= 4) depth -=1;
 
+
+    // -------------------------------- loop over legal moves -----------------------------------
     // movepicker for TT, killers and MVV-LVA
     MovePicker picker(board, tt_move, state.killers[static_cast<std::size_t>(ply)], state.history);
     int moves_searched = 0;
@@ -245,19 +321,24 @@ int alpha_beta(Board& board, int depth, const int ply,
     std::array<Move, 256> quiets_tried;
     std::size_t num_quiets = 0;
 
-    // -------------------------------- loop over legal moves -----------------------------------
     const auto original_alpha = alpha;
     int best_score = -SCORE_INF;
     Move best_move{}, m;
+    // TODO: IMPROVING HEURISTIC
+    //const int futility_margin = 100 + 100 * depth + (improving ? 50 : 0); // TODO: tune
     const int futility_margin = 100 + 100 * depth; // TODO: tune
     while ((m = picker.next()) != Move{}) {
         if (not board.is_legal(m)) continue;
 
-        // late move pruning and futility pruning
+        // LMP (late move pruning) and futility pruning
         if (m.is_quiet() and not is_pv_node and not in_check and depth<=6 and best_score > -MATE_BOUND) {
             // LMP: if a quiet move if late within the order quiet list, it is unlikely to be relevant
-            if (num_quiets>LMP_THRESHOLD[static_cast<std::size_t>(depth)])
-                continue; // skip this late quiet move
+            // if the position is improving, allow more quiet moves
+            // without improving, only half as many moves are searched
+            // TODO: IMPROVING HEURISTIC
+            //const auto thr = LMP_THRESHOLD[static_cast<std::size_t>(depth)] / (2 - static_cast<int>(improving));
+            const auto thr = LMP_THRESHOLD[static_cast<std::size_t>(depth)];
+            if (num_quiets > thr) continue; // skip this late quiet move
             // futiilty pruning
             // if the static eval is already so bad, quiet moves are unlikely to rescue us
             if (static_eval + futility_margin <= alpha and not board.gives_check(m)) continue;
@@ -282,6 +363,8 @@ int alpha_beta(Board& board, int depth, const int ply,
                 lm_reduction = LMR_TABLE[static_cast<std::size_t>(depth)][static_cast<std::size_t>(moves_searched)];
                 if (is_pv_node) lm_reduction -= 1; // dont reduce so aggresively in PV nodes
                 lm_reduction = std::clamp(lm_reduction, 0, depth-2); // dont reduce into quiescense search
+                // TODO: IMPROVING HEURISTIC
+                //if (not improving) lm_reduction += 1; // reduce more when not improving
             }
 
             // try zero window search with LMR
@@ -319,6 +402,13 @@ int alpha_beta(Board& board, int depth, const int ply,
                         state.pv_table[ply][k] = state.pv_table[ply+1][k];
                     // update PV length
                     state.pv_length[ply] = state.pv_length[ply+1];
+                }
+
+                if (ply == 0) {
+                    state.root_updated = true;
+                    state.root_score = score;
+                    state.root_lowerbound = score >= beta;
+                    state.root_pv.assign(state.pv_table[0], state.pv_table[0] + state.pv_length[0]);
                 }
 
                 // beta cutoff

@@ -22,12 +22,18 @@ struct SearchState {
     bool stopped = false;
 
     Move root_first{};
+    bool root_updated = false;
+    int root_score = 0;
+    bool root_lowerbound = false;
+    std::vector<Move> root_pv;
 
     Move pv_table[MAX_PLY][MAX_PLY];
     int  pv_length[MAX_PLY];
 
     std::array<std::array<Move, 2>, MAX_PLY> killers{};
     std::array<std::array<std::array<int, 64>, 64>, 2> history{};
+
+    std::array<int, MAX_PLY+2> static_evals{};
 
     std::chrono::milliseconds elapsed() const {
         return std::chrono::duration_cast<std::chrono::milliseconds>(

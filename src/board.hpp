@@ -1,6 +1,7 @@
 #pragma once 
 
 #include "move.hpp"
+#include "score.hpp"
 
 #include <string>
 #include <cstdint>
@@ -10,14 +11,14 @@ namespace azalea {
 
 typedef std::uint64_t Bitboard;
 
-enum class PieceType {
-    Empty,
+enum PieceType {
     Pawn,
     Knight,
     Bishop,
     Rook,
     Queen,
     King,
+    Empty,
 };
 
 
@@ -39,8 +40,7 @@ struct PositionInfo {
     PieceType captured{PieceType::Empty};
     Bitboard checkers{0ULL};
     Bitboard pinned{0ULL};
-    int early_score{0};
-    int late_score{0};
+    Score score;
     int pliesFromLastNull{124}; // something "large" to allow null move pruning early
 };
 
@@ -95,6 +95,22 @@ struct Board {
     [[nodiscard]] bool is_repetition() const;
     [[nodiscard]] bool player_has_non_pawn_material() const;
     [[nodiscard]] bool gives_check(const Move);
+
+    template<bool UpdateState=true> void put_piece(int pc, int sq);
+    template<bool UpdateState=true> void remove_piece(int pc, int sq);
+    template<bool UpdateState=true> void move_piece(int pc, int from, int to);
+
+    Bitboard& type_bb(int pt) {
+        switch (pt) {
+            case 0: return pawns;
+            case 1: return knights;
+            case 2: return bishops;
+            case 3: return rooks;
+            case 4: return queens;
+            default: return kings;
+        }
+    }
+    Bitboard& color_bb(int pc) { return pc < 6 ? white_pieces : black_pieces; }
 };
 
 } // namespace azalea

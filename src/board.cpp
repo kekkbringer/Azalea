@@ -2,13 +2,90 @@
 #include "attacks.hpp"
 #include "util.hpp"
 #include "zobrist.hpp"
-#include "eval.hpp"
+#include "score.hpp"
+#include "eval_trace.hpp"
+#include "weights.hpp"
 
 #include <bit>
 #include <iostream>
 #include <sstream>
 
 namespace azalea {
+
+constexpr int PAWN=0, KNIGHT=1, BISHOP=2, ROOK=3, QUEEN=4, KING=5;
+
+constexpr int promotion_index(const Move m) {
+    if (m.is_knight_promotion()) return KNIGHT;
+    if (m.is_bishop_promotion()) return BISHOP;
+    if (m.is_rook_promotion())   return ROOK;
+    return QUEEN;
+}
+
+// helper for incremental piece eval during make_move
+inline constexpr std::array<std::array<Score, 64>, 12> PIECE_SQ_TABLE = []{
+    std::array<std::array<Score, 64>, 12> table{};
+    for (std::size_t pt=0; pt<6; ++pt) {
+        // get material value, king has 0
+        const Score val = (pt < 5) ? WEIGHTS[PAWN_EVAL + pt] : Score{};
+        for (std::size_t sq=0; sq<64; ++sq) {
+            table[pt][sq]   =   val + WEIGHTS[PST_START + pt*64 + sq];
+            table[pt+6][sq] = -(val + WEIGHTS[PST_START + pt*64 + (sq^56)]);
+        }
+    }
+    return table;
+}();
+
+/**
+ * Takes a combined index indicating piece type and color as well as the square of the piece.
+ */
+template <bool UpdateState>
+void Board::put_piece(int pc, int sq) {
+    const Bitboard mask = (1ULL << sq);
+
+    // update color and pieces bitboards
+    color_bb(pc)    |= mask;
+    type_bb(pc % 6) |= mask;
+
+    const auto pc_t = static_cast<std::size_t>(pc);
+    const auto sq_t = static_cast<std::size_t>(sq);
+
+    // update hash and eval
+    if constexpr (UpdateState) {
+        hash() ^= z_keys.piece_square[pc_t][sq_t];
+        position_history.back().score += PIECE_SQ_TABLE[pc_t][sq_t];
+    }
+}
+
+/**
+ * Takes a combined index indicating piece type and color as well as the square of the piece.
+ */
+template <bool UpdateState>
+void Board::remove_piece(int pc, int sq) {
+    const Bitboard mask = (1ULL << sq);
+
+    // update color and pieces bitboards
+    color_bb(pc)    &= ~mask;
+    type_bb(pc % 6) &= ~mask;
+
+    const auto pc_t = static_cast<std::size_t>(pc);
+    const auto sq_t = static_cast<std::size_t>(sq);
+
+    // update hash and eval
+    if constexpr (UpdateState) {
+        hash() ^= z_keys.piece_square[pc_t][sq_t];
+        position_history.back().score -= PIECE_SQ_TABLE[pc_t][sq_t];
+    }
+}
+
+/**
+ * Takes a combined index indicating piece type and color as well as the square of the piece.
+ */
+template <bool UpdateState>
+void Board::move_piece(int pc, int from, int to) {
+    remove_piece<UpdateState>(pc, from);
+    put_piece<UpdateState>(pc, to);
+}
+
 
 // TODO: this is the inefficient way to check if a move gives check
 [[nodiscard]] bool Board::gives_check(const Move move) {
@@ -183,267 +260,86 @@ void Board::update_checker_pinned() {
 }
 
 void Board::unmake_move(const Move move) {
-    const PieceType captured_piece = captured();
+    const PieceType victim = captured();
     position_history.pop_back();
-
-    const Bitboard from_mask = (1ULL << move.from());
-    const Bitboard to_mask = (1ULL << move.to());
-
-    // move piece that was move back
-    Bitboard& them = white_to_move ? white_pieces : black_pieces;
-    Bitboard& us   = white_to_move ? black_pieces : white_pieces;
-    us   ^= from_mask | to_mask;
-    if (move.is_capture()) them |= to_mask;
-
-    const auto moved_piece = piece_at_square(move.to());
-
-    switch (moved_piece) {
-        case PieceType::Pawn:   { pawns   |= from_mask; pawns   ^= to_mask; break; }
-        case PieceType::Knight: { knights |= from_mask; knights ^= to_mask; break; }
-        case PieceType::Bishop: { bishops |= from_mask; bishops ^= to_mask; break; }
-        case PieceType::Rook:   { rooks   |= from_mask; rooks   ^= to_mask; break; }
-        case PieceType::Queen:  { queens  |= from_mask; queens  ^= to_mask; break; }
-        case PieceType::King:   { kings   |= from_mask; kings   ^= to_mask; break; }
-        case PieceType::Empty:  break;
-    }
-
-    switch (captured_piece) {
-        case PieceType::Pawn:   { pawns   |= to_mask; break; }
-        case PieceType::Knight: { knights |= to_mask; break; }
-        case PieceType::Bishop: { bishops |= to_mask; break; }
-        case PieceType::Rook:   { rooks   |= to_mask; break; }
-        case PieceType::Queen:  { queens  |= to_mask; break; }
-        case PieceType::King:   { kings   |= to_mask; break; }
-        case PieceType::Empty:  break;
-    }
-
-    if (move.is_promotion()) {
-        if (move.is_knight_promotion()) { knights ^= from_mask; pawns ^= from_mask; }
-        if (move.is_bishop_promotion()) { bishops ^= from_mask; pawns ^= from_mask; }
-        if (move.is_rook_promotion())   { rooks   ^= from_mask; pawns ^= from_mask; }
-        if (move.is_queen_promotion())  { queens  ^= from_mask; pawns ^= from_mask; }
-    }
-
-    if (move.is_en_passant()) {
-        const Bitboard shifted = white_to_move ? (to_mask << 8) : (to_mask >> 8);
-        pawns ^= to_mask; // fix from normal capture
-        them  ^= to_mask; // fix from normal capture
-        pawns ^= shifted;
-        them  ^= shifted;
-    }
-
-    if (move.is_king_side_castle()) {
-        if (not white_to_move) {
-            rooks ^= (1ULL << F1) | (1ULL << H1);
-            white_pieces ^= (1ULL << F1) | (1ULL << H1);
-        } else { // black to move
-            rooks ^= (1ULL << F8) | (1ULL << H8);
-            black_pieces ^= (1ULL << F8) | (1ULL << H8);
-        }
-    } else if (move.is_queen_side_castle()) {
-        if (not white_to_move) {
-            rooks ^= (1ULL << A1) | (1ULL << D1);
-            white_pieces ^= (1ULL << A1) | (1ULL << D1);
-        } else { // black to move
-            rooks ^= (1ULL << A8) | (1ULL << D8);
-            black_pieces ^= (1ULL << A8) | (1ULL << D8);
-        }
-    }
-
     if (white_to_move) --fullmove_number;
-
     white_to_move = not white_to_move;
+
+    const auto from = move.from();
+    const auto to   = move.to();
+    const int us   = white_to_move ? 0 : 6;
+    const int them = 6 - us;
+
+    // do everything in reverse order of make_move
+
+    // castling -> move rook back
+    if (move.is_king_side_castle()) {
+        if (white_to_move) move_piece<false>(us + ROOK, F1, H1);
+        else               move_piece<false>(us + ROOK, F8, H8);
+    } else if (move.is_queen_side_castle()) {
+        if (white_to_move) move_piece<false>(us + ROOK, D1, A1);
+        else               move_piece<false>(us + ROOK, D8, A8);
+    }
+
+    // move piece back
+    if (move.is_promotion()) {
+        remove_piece<false>(us + promotion_index(move), to);
+        put_piece<false>(us + PAWN, from);
+    } else {
+        move_piece<false>(us + static_cast<int>(piece_at_square(to)), to, from);
+    }
+
+    // finally, put caputured piece back
+    if (move.is_en_passant()) {
+        put_piece<false>(them + PAWN, white_to_move ? to-8 : to+8);
+    } else if (victim != PieceType::Empty) {
+        put_piece<false>(them + static_cast<int>(victim), to);
+    }
 }
 
 void Board::make_move(const Move move) {
     position_history.push_back(position_history.back());
     position_history.back().pliesFromLastNull++;
 
-    const Bitboard from_mask = (1ULL << move.from());
-    const Bitboard to_mask = (1ULL << move.to());
+    const auto& to   = move.to();
+    const auto& from = move.from();
 
-    // move piece
-    const auto moved_piece = piece_at_square(move.from());
-    const auto captured_piece = piece_at_square(move.to());
-    captured() = captured_piece;
+    const int us   = white_to_move ? 0 : 6;
+    const int them = 6 - us;
+    const int imoved = us   + static_cast<int>(piece_at_square(move.from()));
 
-    Bitboard& us   = white_to_move ? white_pieces : black_pieces;
-    Bitboard& them = white_to_move ? black_pieces : white_pieces;
-    us   ^= from_mask | to_mask;
-    them &= ~to_mask;
-
-    const size_t our_color_offset   = white_to_move ? 0 : 6;
-    const size_t their_color_offset = white_to_move ? 6 : 0;
-
-    auto& early_score = position_history.back().early_score;
-    auto& late_score = position_history.back().late_score;
-
-    switch (captured_piece) {
-        case PieceType::Pawn: {
-            early_score += white_to_move ? EARLY_PAWN_SQ[static_cast<std::size_t>(move.to())^56] : -EARLY_PAWN_SQ[static_cast<std::size_t>(move.to())];
-            late_score  += white_to_move ? LATE_PAWN_SQ[static_cast<std::size_t>(move.to())^56] : -LATE_PAWN_SQ[static_cast<std::size_t>(move.to())];
-            early_score += white_to_move ? EARLY_PAWN_EVAL : -EARLY_PAWN_EVAL;
-            late_score  += white_to_move ? LATE_PAWN_EVAL : -LATE_PAWN_EVAL;
-            pawns   &= ~to_mask; hash() ^= z_keys.piece_square[their_color_offset+0][move.to()];
-            break;
-        }
-        case PieceType::Knight: {
-            early_score += white_to_move ? EARLY_KNIGHT_SQ[static_cast<std::size_t>(move.to())^56] : -EARLY_KNIGHT_SQ[static_cast<std::size_t>(move.to())];
-            late_score  += white_to_move ? LATE_KNIGHT_SQ[static_cast<std::size_t>(move.to())^56] : -LATE_KNIGHT_SQ[static_cast<std::size_t>(move.to())];
-            early_score += white_to_move ? EARLY_KNIGHT_EVAL : -EARLY_KNIGHT_EVAL;
-            late_score  += white_to_move ? LATE_KNIGHT_EVAL : -LATE_KNIGHT_EVAL;
-            knights &= ~to_mask; hash() ^= z_keys.piece_square[their_color_offset+1][move.to()];
-            break;
-        }
-        case PieceType::Bishop: {
-            early_score += white_to_move ? EARLY_BISHOP_SQ[static_cast<std::size_t>(move.to())^56] : -EARLY_BISHOP_SQ[static_cast<std::size_t>(move.to())];
-            late_score  += white_to_move ? LATE_BISHOP_SQ[static_cast<std::size_t>(move.to())^56] : -LATE_BISHOP_SQ[static_cast<std::size_t>(move.to())];
-            early_score += white_to_move ? EARLY_BISHOP_EVAL : -EARLY_BISHOP_EVAL;
-            late_score  += white_to_move ? LATE_BISHOP_EVAL : -LATE_BISHOP_EVAL;
-            bishops &= ~to_mask; hash() ^= z_keys.piece_square[their_color_offset+2][move.to()];
-            break;
-        }
-        case PieceType::Rook: {
-            early_score += white_to_move ? EARLY_ROOK_SQ[static_cast<std::size_t>(move.to())^56] : -EARLY_ROOK_SQ[static_cast<std::size_t>(move.to())];
-            late_score  += white_to_move ? LATE_ROOK_SQ[static_cast<std::size_t>(move.to())^56] : -LATE_ROOK_SQ[static_cast<std::size_t>(move.to())];
-            early_score += white_to_move ? EARLY_ROOK_EVAL : -EARLY_ROOK_EVAL;
-            late_score  += white_to_move ? LATE_ROOK_EVAL : -LATE_ROOK_EVAL;
-            rooks   &= ~to_mask; hash() ^= z_keys.piece_square[their_color_offset+3][move.to()];
-            break;
-        }
-        case PieceType::Queen: {
-            early_score += white_to_move ? EARLY_QUEEN_SQ[static_cast<std::size_t>(move.to())^56] : -EARLY_QUEEN_SQ[static_cast<std::size_t>(move.to())];
-            late_score  += white_to_move ? LATE_QUEEN_SQ[static_cast<std::size_t>(move.to())^56] : -LATE_QUEEN_SQ[static_cast<std::size_t>(move.to())];
-            early_score += white_to_move ? EARLY_QUEEN_EVAL : -EARLY_QUEEN_EVAL;
-            late_score  += white_to_move ? LATE_QUEEN_EVAL : -LATE_QUEEN_EVAL;
-            queens  &= ~to_mask; hash() ^= z_keys.piece_square[their_color_offset+4][move.to()];
-            break;
-        }
-        case PieceType::King: {
-            //early_score += white_to_move ? EARLY_KING_SQ[static_cast<std::size_t>(move.to())^56] : -EARLY_KING_SQ[static_cast<std::size_t>(move.to()];
-            //late_score  += white_to_move ? LATE_KING_SQ[static_cast<std::size_t>(move.to())^56] : -LATE_KING_SQ[static_cast<std::size_t>(move.to()];
-            //kings   &= ~to_mask; hash() ^= z_keys.piece_square[their_color_offset+5][move.to()];
-            break;
-        }
-        case PieceType::Empty:  break;
-    }
-
-    switch (moved_piece) {
-        case PieceType::Pawn: {
-            pawns ^= from_mask;
-            pawns |= to_mask;
-            hash() ^= z_keys.piece_square[our_color_offset+0][move.to()];
-            hash() ^= z_keys.piece_square[our_color_offset+0][move.from()];
-            early_score += white_to_move ? EARLY_PAWN_SQ[static_cast<std::size_t>(move.to())]    - EARLY_PAWN_SQ[static_cast<std::size_t>(move.from())]
-                                        : -EARLY_PAWN_SQ[static_cast<std::size_t>(move.to())^56] + EARLY_PAWN_SQ[static_cast<std::size_t>(move.from())^56];
-            late_score  += white_to_move ?  LATE_PAWN_SQ[static_cast<std::size_t>(move.to())]    -  LATE_PAWN_SQ[static_cast<std::size_t>(move.from())]
-                                        :  -LATE_PAWN_SQ[static_cast<std::size_t>(move.to())^56] +  LATE_PAWN_SQ[static_cast<std::size_t>(move.from())^56];
-            break;
-        }
-        case PieceType::Knight: {
-            knights ^= from_mask;
-            knights |= to_mask;
-            hash() ^= z_keys.piece_square[our_color_offset+1][move.to()];
-            hash() ^= z_keys.piece_square[our_color_offset+1][move.from()];
-            early_score += white_to_move ? EARLY_KNIGHT_SQ[static_cast<std::size_t>(move.to())]    - EARLY_KNIGHT_SQ[static_cast<std::size_t>(move.from())]
-                                        : -EARLY_KNIGHT_SQ[static_cast<std::size_t>(move.to())^56] + EARLY_KNIGHT_SQ[static_cast<std::size_t>(move.from())^56];
-            late_score  += white_to_move ?  LATE_KNIGHT_SQ[static_cast<std::size_t>(move.to())]    -  LATE_KNIGHT_SQ[static_cast<std::size_t>(move.from())]
-                                        :  -LATE_KNIGHT_SQ[static_cast<std::size_t>(move.to())^56] +  LATE_KNIGHT_SQ[static_cast<std::size_t>(move.from())^56];
-            break;
-        }
-        case PieceType::Bishop: {
-            bishops ^= from_mask;
-            bishops |= to_mask;
-            hash() ^= z_keys.piece_square[our_color_offset+2][move.to()];
-            hash() ^= z_keys.piece_square[our_color_offset+2][move.from()];
-            early_score += white_to_move ? EARLY_BISHOP_SQ[static_cast<std::size_t>(move.to())]    - EARLY_BISHOP_SQ[static_cast<std::size_t>(move.from())]
-                                        : -EARLY_BISHOP_SQ[static_cast<std::size_t>(move.to())^56] + EARLY_BISHOP_SQ[static_cast<std::size_t>(move.from())^56];
-            late_score  += white_to_move ?  LATE_BISHOP_SQ[static_cast<std::size_t>(move.to())]    -  LATE_BISHOP_SQ[static_cast<std::size_t>(move.from())]
-                                        :  -LATE_BISHOP_SQ[static_cast<std::size_t>(move.to())^56] +  LATE_BISHOP_SQ[static_cast<std::size_t>(move.from())^56];
-            break;
-        }
-        case PieceType::Rook:   {
-            rooks ^= from_mask;
-            rooks |= to_mask;
-            hash() ^= z_keys.piece_square[our_color_offset+3][move.to()];
-            hash() ^= z_keys.piece_square[our_color_offset+3][move.from()];
-            early_score += white_to_move ? EARLY_ROOK_SQ[static_cast<std::size_t>(move.to())]    - EARLY_ROOK_SQ[static_cast<std::size_t>(move.from())]
-                                        : -EARLY_ROOK_SQ[static_cast<std::size_t>(move.to())^56] + EARLY_ROOK_SQ[static_cast<std::size_t>(move.from())^56];
-            late_score  += white_to_move ?  LATE_ROOK_SQ[static_cast<std::size_t>(move.to())]    -  LATE_ROOK_SQ[static_cast<std::size_t>(move.from())]
-                                        :  -LATE_ROOK_SQ[static_cast<std::size_t>(move.to())^56] +  LATE_ROOK_SQ[static_cast<std::size_t>(move.from())^56];
-            break;
-        }
-        case PieceType::Queen:  {
-            queens  ^= from_mask;
-            queens  |= to_mask;
-            hash() ^= z_keys.piece_square[our_color_offset+4][move.to()];
-            hash() ^= z_keys.piece_square[our_color_offset+4][move.from()];
-            early_score += white_to_move ? EARLY_QUEEN_SQ[static_cast<std::size_t>(move.to())]    - EARLY_QUEEN_SQ[static_cast<std::size_t>(move.from())]
-                                        : -EARLY_QUEEN_SQ[static_cast<std::size_t>(move.to())^56] + EARLY_QUEEN_SQ[static_cast<std::size_t>(move.from())^56];
-            late_score  += white_to_move ?  LATE_QUEEN_SQ[static_cast<std::size_t>(move.to())]    -  LATE_QUEEN_SQ[static_cast<std::size_t>(move.from())]
-                                        :  -LATE_QUEEN_SQ[static_cast<std::size_t>(move.to())^56] +  LATE_QUEEN_SQ[static_cast<std::size_t>(move.from())^56];
-            break;
-        }
-        case PieceType::King:   {
-            kings   ^= from_mask;
-            kings   |= to_mask;
-            hash() ^= z_keys.piece_square[our_color_offset+5][move.to()];
-            hash() ^= z_keys.piece_square[our_color_offset+5][move.from()];
-            early_score += white_to_move ? EARLY_KING_SQ[static_cast<std::size_t>(move.to())]    - EARLY_KING_SQ[static_cast<std::size_t>(move.from())]
-                                        : -EARLY_KING_SQ[static_cast<std::size_t>(move.to())^56] + EARLY_KING_SQ[static_cast<std::size_t>(move.from())^56];
-            late_score  += white_to_move ?  LATE_KING_SQ[static_cast<std::size_t>(move.to())]    -  LATE_KING_SQ[static_cast<std::size_t>(move.from())]
-                                        :  -LATE_KING_SQ[static_cast<std::size_t>(move.to())^56] +  LATE_KING_SQ[static_cast<std::size_t>(move.from())^56];
-            break;
-        }
-        case PieceType::Empty: break;
-    }
-
+    // remove the captured piece first
     if (move.is_en_passant()) {
-        const Bitboard shifted = white_to_move ? (to_mask >> 8) : (to_mask << 8);
-        pawns &= ~shifted;
-        them  &= ~shifted;
+        const int cap_sq = white_to_move ? to-8 : to+8;
+        remove_piece(them + PAWN, cap_sq);
         captured() = PieceType::Pawn;
-        // fix wrong hash modification and do the proper one
-        hash() ^= z_keys.piece_square[their_color_offset+0][static_cast<std::size_t>(lsb(shifted))];
-        early_score += white_to_move ? EARLY_PAWN_SQ[lsb(shifted)^56] : -EARLY_PAWN_SQ[lsb(shifted)];
-        late_score  += white_to_move ? LATE_PAWN_SQ[lsb(shifted)^56] : -LATE_PAWN_SQ[lsb(shifted)];
-        early_score += white_to_move ? EARLY_PAWN_EVAL : -EARLY_PAWN_EVAL;
-        late_score  += white_to_move ? LATE_PAWN_EVAL : -LATE_PAWN_EVAL;
+    } else if (move.is_capture()) {
+        const PieceType victim = piece_at_square(to);
+        remove_piece(them + static_cast<int>(victim), to);
+        captured() = victim;
+    } else {
+        captured() = PieceType::Empty;
     }
 
-    if (move.is_king_side_castle()) {
-        if (white_to_move) {
-            rooks ^= (1ULL << F1) | (1ULL << H1);
-            white_pieces ^= (1ULL << F1) | (1ULL << H1);
-            hash() ^= z_keys.piece_square[3][F1];
-            hash() ^= z_keys.piece_square[3][H1];
-            early_score += EARLY_ROOK_SQ[static_cast<std::size_t>(F1)] - EARLY_ROOK_SQ[static_cast<std::size_t>(H1)];
-            late_score  +=  LATE_ROOK_SQ[static_cast<std::size_t>(F1)] -  LATE_ROOK_SQ[static_cast<std::size_t>(H1)];
-        } else { // black to move
-            rooks ^= (1ULL << F8) | (1ULL << H8);
-            black_pieces ^= (1ULL << F8) | (1ULL << H8);
-            hash() ^= z_keys.piece_square[9][F8];
-            hash() ^= z_keys.piece_square[9][H8];
-            early_score -= EARLY_ROOK_SQ[static_cast<std::size_t>(F8)^56] - EARLY_ROOK_SQ[static_cast<std::size_t>(H8)^56];
-            late_score  -=  LATE_ROOK_SQ[static_cast<std::size_t>(F8)^56] -  LATE_ROOK_SQ[static_cast<std::size_t>(H8)^56];
-        }
-    } else if (move.is_queen_side_castle()) {
-        if (white_to_move) {
-            rooks ^= (1ULL << A1) | (1ULL << D1);
-            white_pieces ^= (1ULL << A1) | (1ULL << D1);
-            hash() ^= z_keys.piece_square[3][A1];
-            hash() ^= z_keys.piece_square[3][D1];
-            early_score += EARLY_ROOK_SQ[static_cast<std::size_t>(D1)] - EARLY_ROOK_SQ[static_cast<std::size_t>(A1)];
-            late_score  +=  LATE_ROOK_SQ[static_cast<std::size_t>(D1)] -  LATE_ROOK_SQ[static_cast<std::size_t>(A1)];
-        } else { // black to move
-            rooks ^= (1ULL << A8) | (1ULL << D8);
-            black_pieces ^= (1ULL << A8) | (1ULL << D8);
-            hash() ^= z_keys.piece_square[9][A8];
-            hash() ^= z_keys.piece_square[9][D8];
-            early_score -= EARLY_ROOK_SQ[static_cast<std::size_t>(D8)^56] - EARLY_ROOK_SQ[static_cast<std::size_t>(A8)^56];
-            late_score  -=  LATE_ROOK_SQ[static_cast<std::size_t>(D8)^56] -  LATE_ROOK_SQ[static_cast<std::size_t>(A8)^56];
-        }
+    // move the piece
+    if (move.is_promotion()) {
+        remove_piece(imoved, from);
+        put_piece(us + promotion_index(move), to);
+    } else {
+        move_piece(imoved, from, to);
     }
+
+    // castling -> rook still didnt get moved
+    if (move.is_king_side_castle()) {
+        if (white_to_move) move_piece(us + ROOK, H1, F1);
+        else               move_piece(us + ROOK, H8, F8);
+    } else if (move.is_queen_side_castle()) {
+        if (white_to_move) move_piece(us + ROOK, A1, D1);
+        else               move_piece(us + ROOK, A8, D8);
+    }
+
+
+    // castling rights
     hash() ^= z_keys.castling[castle_rights()];
     if (move.from() == E1) 
         castle_rights() &= static_cast<std::uint8_t>(~(WHITE_SHORT | WHITE_LONG));
@@ -459,58 +355,18 @@ void Board::make_move(const Move move) {
         castle_rights() &= static_cast<std::uint8_t>(~BLACK_SHORT);
     hash() ^= z_keys.castling[castle_rights()];
 
-    if (move.is_promotion()) {
-        // remove the pawn
-        pawns ^= to_mask;
-        hash() ^= z_keys.piece_square[our_color_offset][move.to()];
-        early_score += white_to_move ? -EARLY_PAWN_SQ[static_cast<std::size_t>(move.to())] : EARLY_PAWN_SQ[static_cast<std::size_t>(move.to())^56];
-        late_score  += white_to_move ? -LATE_PAWN_SQ[static_cast<std::size_t>(move.to())]  : LATE_PAWN_SQ[static_cast<std::size_t>(move.to())^56];
-        early_score += white_to_move ? -EARLY_PAWN_EVAL : EARLY_PAWN_EVAL;
-        late_score  += white_to_move ? -LATE_PAWN_EVAL  : LATE_PAWN_EVAL;
-        if (move.is_knight_promotion()) {
-            knights |= to_mask;
-            hash() ^= z_keys.piece_square[our_color_offset+1][move.to()];
-            early_score += white_to_move ? EARLY_KNIGHT_SQ[static_cast<std::size_t>(move.to())] : -EARLY_KNIGHT_SQ[static_cast<std::size_t>(move.to())^56];
-            late_score  += white_to_move ? LATE_KNIGHT_SQ[static_cast<std::size_t>(move.to())]  : -LATE_KNIGHT_SQ[static_cast<std::size_t>(move.to())^56];
-            early_score += white_to_move ? EARLY_KNIGHT_EVAL : -EARLY_KNIGHT_EVAL;
-            late_score  += white_to_move ? LATE_KNIGHT_EVAL  : -LATE_KNIGHT_EVAL;
-        }
-        if (move.is_bishop_promotion()) {
-            bishops |= to_mask;
-            hash() ^= z_keys.piece_square[our_color_offset+2][move.to()];
-            early_score += white_to_move ? EARLY_BISHOP_SQ[static_cast<std::size_t>(move.to())] : -EARLY_BISHOP_SQ[static_cast<std::size_t>(move.to())^56];
-            late_score  += white_to_move ? LATE_BISHOP_SQ[static_cast<std::size_t>(move.to())]  : -LATE_BISHOP_SQ[static_cast<std::size_t>(move.to())^56];
-            early_score += white_to_move ? EARLY_BISHOP_EVAL : -EARLY_BISHOP_EVAL;
-            late_score  += white_to_move ? LATE_BISHOP_EVAL  : -LATE_BISHOP_EVAL;
-        }
-        if (move.is_rook_promotion()) {
-            rooks |= to_mask;
-            hash() ^= z_keys.piece_square[our_color_offset+3][move.to()];
-            early_score += white_to_move ? EARLY_ROOK_SQ[static_cast<std::size_t>(move.to())] : -EARLY_ROOK_SQ[static_cast<std::size_t>(move.to())^56];
-            late_score  += white_to_move ? LATE_ROOK_SQ[static_cast<std::size_t>(move.to())]  : -LATE_ROOK_SQ[static_cast<std::size_t>(move.to())^56];
-            early_score += white_to_move ? EARLY_ROOK_EVAL : -EARLY_ROOK_EVAL;
-            late_score  += white_to_move ? LATE_ROOK_EVAL  : -LATE_ROOK_EVAL;
-        }
-        if (move.is_queen_promotion()) {
-            queens |= to_mask;
-            hash() ^= z_keys.piece_square[our_color_offset+4][move.to()];
-            early_score += white_to_move ? EARLY_QUEEN_SQ[static_cast<std::size_t>(move.to())] : -EARLY_QUEEN_SQ[static_cast<std::size_t>(move.to())^56];
-            late_score  += white_to_move ? LATE_QUEEN_SQ[static_cast<std::size_t>(move.to())]  : -LATE_QUEEN_SQ[static_cast<std::size_t>(move.to())^56];
-            early_score += white_to_move ? EARLY_QUEEN_EVAL : -EARLY_QUEEN_EVAL;
-            late_score  += white_to_move ? LATE_QUEEN_EVAL  : -LATE_QUEEN_EVAL;
-        }
-    }
-
+    // en passant target
     if (en_passant_target() != -1)
         hash() ^= z_keys.en_passant[static_cast<std::size_t>(en_passant_target()%8)];
     en_passant_target() = -1;
 
+    // double pawn push -> maybe set ep square
     if (move.is_double_pawn_push()) {
         const int ep_sq = (move.to() + move.from()) / 2;
         // only set en_passant target if a capture is possible, otherwise it needs
         // to be identical to the position where the double pawn push did not
         // occur on the last move
-        const Bitboard capturers = attacks::pawn(white_to_move, ep_sq) & pawns & them;
+        const Bitboard capturers = attacks::pawn(white_to_move, ep_sq) & pawns & color_bb(them);
         if (capturers != 0) {
             en_passant_target() = ep_sq;
             hash() ^= z_keys.en_passant[static_cast<std::size_t>(move.to()%8)];
@@ -518,7 +374,7 @@ void Board::make_move(const Move move) {
     }
 
     ++halfmove_clock();
-    if (move.is_capture() or moved_piece == PieceType::Pawn) halfmove_clock() = 0;
+    if (move.is_capture() or imoved % 6 == PAWN) halfmove_clock() = 0;
 
     if (not white_to_move) ++fullmove_number;
 
@@ -572,159 +428,29 @@ Board::Board(const std::string_view& fen) {
     std::istringstream iss(std::string{fen});
     std::string substring;
 
-    auto& early_score = position_history.back().early_score;
-    auto& late_score = position_history.back().late_score;
-
-    early_score = 0;
-    late_score = 0;
-
     hash() = 0ULL;
 
     // piece placement
+    constexpr std::string_view piece_chars = "PNBRQKpnbrqk";
     iss >> substring;
-    int index = 56;
+    int index = 56; // a8
     int line_cap = 0;
     for (const auto& c: substring) {
-        switch (c) {
-            case '1': { line_cap += 1; index += 1; continue; }
-            case '2': { line_cap += 2; index += 2; continue; }
-            case '3': { line_cap += 3; index += 3; continue; }
-            case '4': { line_cap += 4; index += 4; continue; }
-            case '5': { line_cap += 5; index += 5; continue; }
-            case '6': { line_cap += 6; index += 6; continue; }
-            case '7': { line_cap += 7; index += 7; continue; }
-            case '8': { line_cap += 8; index += 8; continue; }
-            case '/': {
-                          if (line_cap == 8) {
-                              line_cap = 0;
-                              index -= 16;
-                              continue;
-                          }
-                          else {
-                              std::cout << "Invalid FEN" << std::endl;
-                              return;
-                          }
-                      }
-
-            case 'P': {
-                hash() ^= z_keys.piece_square[0][static_cast<std::size_t>(index)];
-                white_pieces |= (1ULL<<index);
-                pawns |= (1ULL<<index);
-                early_score += EARLY_PAWN_EVAL;
-                late_score  += LATE_PAWN_EVAL;
-                early_score += EARLY_PAWN_SQ[static_cast<std::size_t>(index)];
-                late_score  += LATE_PAWN_SQ[static_cast<std::size_t>(index)];
-                ++index; ++line_cap; continue;
-            }
-            case 'N': {
-                hash() ^= z_keys.piece_square[ 1][static_cast<std::size_t>(index)];
-                white_pieces |= (1ULL<<index);
-                knights |= (1ULL<<index);
-                early_score += EARLY_KNIGHT_EVAL;
-                late_score  += LATE_KNIGHT_EVAL;
-                early_score += EARLY_KNIGHT_SQ[static_cast<std::size_t>(index)];
-                late_score  += LATE_KNIGHT_SQ[static_cast<std::size_t>(index)];
-                ++index; ++line_cap; continue;
-            }
-            case 'B': {
-                hash() ^= z_keys.piece_square[ 2][static_cast<std::size_t>(index)];
-                white_pieces |= (1ULL<<index);
-                bishops |= (1ULL<<index);
-                early_score += EARLY_BISHOP_EVAL;
-                late_score  += LATE_BISHOP_EVAL;
-                early_score += EARLY_BISHOP_SQ[static_cast<std::size_t>(index)];
-                late_score  += LATE_BISHOP_SQ[static_cast<std::size_t>(index)];
-                ++index; ++line_cap; continue;
-            }
-            case 'R': {
-                hash() ^= z_keys.piece_square[ 3][static_cast<std::size_t>(index)];
-                white_pieces |= (1ULL<<index);
-                rooks |= (1ULL<<index);
-                early_score += EARLY_ROOK_EVAL;
-                late_score  += LATE_ROOK_EVAL;
-                early_score += EARLY_ROOK_SQ[static_cast<std::size_t>(index)];
-                late_score  += LATE_ROOK_SQ[static_cast<std::size_t>(index)];
-                ++index; ++line_cap; continue;
-            }
-            case 'Q': {
-                hash() ^= z_keys.piece_square[ 4][static_cast<std::size_t>(index)];
-                white_pieces |= (1ULL<<index);
-                queens |= (1ULL<<index);
-                early_score += EARLY_QUEEN_EVAL;
-                late_score  += LATE_QUEEN_EVAL;
-                early_score += EARLY_QUEEN_SQ[static_cast<std::size_t>(index)];
-                late_score  += LATE_QUEEN_SQ[static_cast<std::size_t>(index)];
-                ++index; ++line_cap; continue;
-            }
-            case 'K': {
-                hash() ^= z_keys.piece_square[ 5][static_cast<std::size_t>(index)];
-                white_pieces |= (1ULL<<index);
-                kings |= (1ULL<<index);
-                early_score += EARLY_KING_SQ[static_cast<std::size_t>(index)];
-                late_score  += LATE_KING_SQ[static_cast<std::size_t>(index)];
-                ++index; ++line_cap; continue;
-            }
-            case 'p': {
-                hash() ^= z_keys.piece_square[ 6][static_cast<std::size_t>(index)];
-                black_pieces |= (1ULL<<index);
-                pawns |= (1ULL<<index);
-                early_score -= EARLY_PAWN_EVAL;
-                late_score  -= LATE_PAWN_EVAL;
-                early_score -= EARLY_PAWN_SQ[static_cast<std::size_t>(index)^56];
-                late_score  -= LATE_PAWN_SQ[static_cast<std::size_t>(index)^56];
-                ++index; ++line_cap; continue;
-            }
-            case 'n': {
-                hash() ^= z_keys.piece_square[ 7][static_cast<std::size_t>(index)];
-                black_pieces |= (1ULL<<index);
-                knights |= (1ULL<<index);
-                early_score -= EARLY_KNIGHT_EVAL;
-                late_score  -= LATE_KNIGHT_EVAL;
-                early_score -= EARLY_KNIGHT_SQ[static_cast<std::size_t>(index)^56];
-                late_score  -= LATE_KNIGHT_SQ[static_cast<std::size_t>(index)^56];
-                ++index; ++line_cap; continue;
-            }
-            case 'b': {
-                hash() ^= z_keys.piece_square[ 8][static_cast<std::size_t>(index)];
-                black_pieces |= (1ULL<<index);
-                bishops |= (1ULL<<index);
-                early_score -= EARLY_BISHOP_EVAL;
-                late_score  -= LATE_BISHOP_EVAL;
-                early_score -= EARLY_BISHOP_SQ[static_cast<std::size_t>(index)^56];
-                late_score  -= LATE_BISHOP_SQ[static_cast<std::size_t>(index)^56];
-                ++index; ++line_cap; continue;
-            }
-            case 'r': {
-                hash() ^= z_keys.piece_square[ 9][static_cast<std::size_t>(index)];
-                black_pieces |= (1ULL<<index);
-                rooks |= (1ULL<<index);
-                early_score -= EARLY_ROOK_EVAL;
-                late_score  -= LATE_ROOK_EVAL;
-                early_score -= EARLY_ROOK_SQ[static_cast<std::size_t>(index)^56];
-                late_score  -= LATE_ROOK_SQ[static_cast<std::size_t>(index)^56];
-                ++index; ++line_cap; continue;
-            }
-            case 'q': {
-                hash() ^= z_keys.piece_square[10][static_cast<std::size_t>(index)];
-                black_pieces |= (1ULL<<index);
-                queens |= (1ULL<<index);
-                early_score -= EARLY_QUEEN_EVAL;
-                late_score  -= LATE_QUEEN_EVAL;
-                early_score -= EARLY_QUEEN_SQ[static_cast<std::size_t>(index)^56];
-                late_score  -= LATE_QUEEN_SQ[static_cast<std::size_t>(index)^56];
-                ++index; ++line_cap; continue;
-            }
-            case 'k': {
-                hash() ^= z_keys.piece_square[11][static_cast<std::size_t>(index)];
-                black_pieces |= (1ULL<<index);
-                kings |= (1ULL<<index);
-                early_score -= EARLY_KING_SQ[static_cast<std::size_t>(index)^56];
-                late_score  -= LATE_KING_SQ[static_cast<std::size_t>(index)^56];
-                ++index; ++line_cap; continue;
-            }
-            default: { std::cout << "Unknown symbol in FEN" << std::endl;
-                         return;
-                     }
+        if (c >= '1' and c <= '8') {
+            const int n = c - '0';
+            index += n;
+            line_cap += n;
+        } else if (c == '/') {
+            if (line_cap != 8) { std::cout << "Invalid FEN" << std::endl; return; }
+            line_cap = 0;
+            index -= 16;
+        } else if (const auto pc = piece_chars.find(c); pc != std::string_view::npos) {
+            put_piece(static_cast<int>(pc), index);
+            ++index;
+            ++line_cap;
+        } else {
+            std::cout << "Unknown symbol in FEN" << std::endl;
+            return;
         }
     }
 
