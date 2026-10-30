@@ -21,6 +21,8 @@ struct SearchState {
     std::uint64_t next_check = 2048;
     bool stopped = false;
 
+    Move root_first{};
+
     Move pv_table[MAX_PLY][MAX_PLY];
     int  pv_length[MAX_PLY];
 

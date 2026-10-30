@@ -107,6 +107,7 @@ void search(Board& board, const SearchLimits& limits, SearchReporter& reporter, 
         // call search on root node, might need to restart to widen the window
         // ----------------------- aspiration window loop ----------------------------
         int score;
+        state.root_first = best_move;
         while (true) {
             state.seldepth = 0;
             score = alpha_beta(board, depth, 0, alpha, beta, state, ttable);
@@ -123,8 +124,17 @@ void search(Board& board, const SearchLimits& limits, SearchReporter& reporter, 
             delta += delta / 2;
         }
 
-        // discard incomplete iterations
-        if (state.stopped and depth > 1) break;
+        // incomplete iterations are still usefull
+        if (state.stopped) {
+            // if partial iteration has at least completed one root search,
+            // it has searched the previous best move already
+            if (state.pv_length[0] > 0) {
+                const auto& row = state.pv_table[0];
+                best_pv.assign(row, row + state.pv_length[0]);
+                best_move = best_pv.front();
+            }
+            break;
+        }
 
         // copy row 0 from the PV table before the next iteration overwrites it
         const auto& row = state.pv_table[0];
@@ -190,6 +200,9 @@ int alpha_beta(Board& board, int depth, const int ply,
             if (tt_entry->bound == TTentry::Bound::Upper and tt_score <= alpha) return tt_score;
         }
     }
+    // at the root node always try the best move from the previous iteration first
+    // do this even if the TT entry has been overwritten
+    if (ply == 0 and state.root_first != Move{}) tt_move = state.root_first;
 
     if (depth <= 0) return quiescence(board, ply, alpha, beta, state);
     if (ply >= MAX_PLY - 1) return eval(board);
