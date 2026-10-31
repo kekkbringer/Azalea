@@ -2,6 +2,7 @@
 #include "eval.hpp"
 #include "eval_trace.hpp"
 #include "weights.hpp"
+#include "attacks.hpp"
 
 #include <iostream>
 #include <fstream>
@@ -11,6 +12,9 @@
 #include <cstdint>
 #include <cmath>
 #include <format>
+#include <algorithm>
+#include <iterator>
+#include <random>
 
 namespace azalea {
 
@@ -266,37 +270,6 @@ Weights gradient(const std::vector<Entry>& entries, const Weights& w, double k) 
     return grad;
 }
 
-// lr in centipawns
-void tune(const std::vector<Entry>& entries, Weights& w, double k, int epochs, double lr) {
-    const double beta1 = 0.9;
-    const double beta2 = 0.999;
-    const double eps   = 1e-8;
-    Weights m{}, v{}; // estimate Adam moments as 0
-
-    // lambda for one adam step
-    auto adam_step = [&](double& weight, double& mi, double& vi, double g, int t) {
-        mi = beta1 * mi + (1.0 - beta1) * g;
-        vi = beta2 * vi + (1.0 - beta2) * g * g;
-        const double m_hat = mi / (1.0 - std::pow(beta1, t));
-        const double v_hat = vi / (1.0 - std::pow(beta2, t));
-        weight -= lr * m_hat / (std::sqrt(v_hat) + eps);
-    };
-
-    // epoch loop
-    for (int epoch=1; epoch<=epochs; ++epoch) {
-        const Weights grad = gradient(entries, w, k);
-
-        for (std::size_t i=0; i<N_TRACE; ++i) {
-            adam_step(w.early[i], m.early[i], v.early[i], grad.early[i], epoch);
-            adam_step(w.late[i],  m.late[i],  v.late[i],  grad.late[i],  epoch);
-        }
-
-        if (epoch % 50 == 0) {
-            std::cout << "epoch " << epoch << "   error " << mean_error(entries, w, k) << "\n";
-        }
-    }
-}
-
 void gradient_check(const std::vector<Entry>& entries, const Weights& w, double k) {
     const Weights g = gradient(entries, w, k);
     const std::array<int, 5> indicies = {TEMPO, PAWN_EVAL, KNIGHT_EVAL,
@@ -315,6 +288,92 @@ void gradient_check(const std::vector<Entry>& entries, const Weights& w, double 
     }
 }
 
+// sum over positions of the squared game-phase-weighted trace values per weight
+Weights effective_positions(const std::vector<Entry>& training) {
+    Weights n{};
+    for (const auto& e: training) {
+        const double f = static_cast<double>(e.phase) / max_material;
+        for (const auto& feat: e.features) {
+            const double ce = feat.early * f;
+            const double cl = feat.late  * (1.0 - f);
+            n.early[feat.index] += ce * ce;
+            n.late[feat.index]  += cl * cl;
+        }
+    }
+    return n;
+}
+
+// lambda to pull weights with n_l2 effective positions halfway to 0
+double l2_lambda(const std::vector<Entry>& training, const Weights& w, double k, double n_l2) {
+    const double scale = k * std::log(10.0) / 400.0;
+    double c = 0.0;
+    for (const auto& e: training) {
+        const double s = sigmoid(sparse_eval(e, w), k);
+        const double d = s * (1.0 - s) * scale;
+        c += 2.0 * d * d;
+    }
+    const double n = static_cast<double>(training.size());
+    return (c / n) * n_l2 / (2.0 * n);
+}
+
+// dont regularize weights of certain features like TEMPO and the material EVAL.
+bool is_regularized(std::size_t i) {
+    return i != TEMPO and not (i >= PAWN_EVAL and i <= QUEEN_EVAL);
+}
+
+// lr in centipawns
+Weights tune(const std::vector<Entry>& training, const std::vector<Entry>& validation,
+             Weights& w, double k, int epochs, double lr, double lambda) {
+    const double beta1 = 0.9;
+    const double beta2 = 0.999;
+    const double eps   = 1e-8;
+    Weights m{}, v{}; // estimate Adam moments as 0
+
+    // lambda for one adam step
+    auto adam_step = [&](double& weight, double& mi, double& vi, double g, int t) {
+        mi = beta1 * mi + (1.0 - beta1) * g;
+        vi = beta2 * vi + (1.0 - beta2) * g * g;
+        const double m_hat = mi / (1.0 - std::pow(beta1, t));
+        const double v_hat = vi / (1.0 - std::pow(beta2, t));
+        weight -= lr * m_hat / (std::sqrt(v_hat) + eps);
+    };
+
+    Weights best = w;
+    double best_val = mean_error(validation, w, k);
+
+    // epoch loop
+    for (int epoch=1; epoch<=epochs; ++epoch) {
+        Weights grad = gradient(training, w, k);
+        // add penalty gradient
+        for (std::size_t i=0; i<N_TRACE; ++i) {
+            if (not is_regularized(i)) continue; // TEMPO and material EVAL
+            grad.early[i] += 2.0 * lambda * w.early[i];
+            grad.late[i]  += 2.0 * lambda * w.late[i];
+        }
+
+        for (std::size_t i=0; i<N_TRACE; ++i) {
+            adam_step(w.early[i], m.early[i], v.early[i], grad.early[i], epoch);
+            adam_step(w.late[i],  m.late[i],  v.late[i],  grad.late[i],  epoch);
+        }
+
+        if (epoch % 50 == 0 or epoch == epochs) {
+            const double val_err = mean_error(validation, w, k);
+            const bool improved = val_err < best_val;
+            if (improved) {
+                best_val = val_err;
+                best = w;
+            }
+            std::cout << "epoch " << epoch
+                      << "\ttraining " << mean_error(training, w, k)
+                      << "\tvalidation " << mean_error(validation, w, k)
+                      << (improved ? " (improved)" : "")
+                      << "\n";
+        }
+    }
+    std::cout << "best validation error " << best_val << "\n";
+    return best;
+}
+
 } // namespace azalea
 
 
@@ -326,6 +385,9 @@ int main(int argc, char* argv[]) {
     }
 
     if (not check_sections()) return 1;
+
+    // eval needs attack lookups for threats, king safety, mobility, etc.
+    attacks::init();
 
     const auto positions = load_epd(argv[1]);
 
@@ -343,7 +405,7 @@ int main(int argc, char* argv[]) {
     std::cout << "first: " << positions.front().fen << "\n";
 
     // check eval via trace
-    const auto entries = build_entries(positions);
+    auto entries = build_entries(positions);
     Weights w = initial_weights();
     std::size_t mismatches = 0;
     std::size_t total_features = 0;
@@ -361,12 +423,41 @@ int main(int argc, char* argv[]) {
     std::cout << "mismatches: " << mismatches << "\n";
 
 
+    // split data 90/10 for training and validation
+    std::mt19937 rng(1);
+    std::shuffle(entries.begin(), entries.end(), rng);
+    const auto n_val = static_cast<std::ptrdiff_t>(entries.size() / 10);
+    std::vector<Entry> validation(std::make_move_iterator(entries.begin()),
+                                  std::make_move_iterator(entries.begin() + n_val));
+    std::vector<Entry> training(  std::make_move_iterator(entries.begin() + n_val),
+                                  std::make_move_iterator(entries.end()));
+    entries.clear();
+
+
     // fit value of K
-    const double k = fit_k(entries, w);
+    const double k = fit_k(training, w);
+
+    constexpr double n_l2 = 100.0; // 100 positions as the threshold
+    const double lambda = l2_lambda(training, w, k, n_l2);
+    const Weights n_eff = effective_positions(training);
+
+    int weak = 0;
+    int total = 0;
+    for (std::size_t i=0; i<N_TRACE; ++i) {
+        if (not is_regularized(i)) continue;
+        total += 2; // early + late
+        weak += (n_eff.early[i] < n_l2) + (n_eff.late[i] < n_l2);
+    }
+    std::cout << "L2: lambda " << lambda << ", " << weak << " of " << total
+        << " regularized weights have fewer than " << n_l2 << " effective positions\n";
+
+
     //gradient_check(entries, w, k);
+    std::cout << "start: train " << mean_error(training, w, k)
+              << "\tvalidation " << mean_error(validation, w, k) << "\n";
 
 
     // run the tuner with adam steps
-    tune(entries, w, k, 1000, 1.0); // 1.0 centipawns
+    w = tune(training, validation, w, k, 1000, 1.0, lambda); // 1.0 centipawns
     write_weights("tuned_weights_data.hpp", w);
 }
